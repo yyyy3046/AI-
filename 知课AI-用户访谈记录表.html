@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知课 AI · 用户访谈记录表</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #e9e9ec;
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", sans-serif;
+    color: #111;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 16px auto;
+    padding: 12mm 14mm;
+    background: #fff;
+    box-shadow: 0 2px 14px rgba(0,0,0,.14);
+  }
+
+  /* ---------- 页眉 ---------- */
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1.2pt solid #111;
+    padding-bottom: 2.2mm;
+  }
+  .head h1 {
+    margin: 0;
+    font-size: 15pt;
+    letter-spacing: .5pt;
+  }
+  .head .sub {
+    margin-top: 1mm;
+    font-size: 8pt;
+    color: #555;
+  }
+  .head .purpose {
+    text-align: right;
+    font-size: 7.6pt;
+    line-height: 1.5;
+    color: #555;
+  }
+
+  /* ---------- 受访者信息 ---------- */
+  .meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2mm 6mm;
+    margin: 3mm 0 1mm;
+    font-size: 9pt;
+  }
+  .fld { display: flex; align-items: flex-end; gap: 1.5mm; }
+  .fld .k { white-space: nowrap; color: #333; }
+  .fld .v {
+    flex: 1;
+    border-bottom: .5pt solid #9a9a9a;
+    height: 5mm;
+  }
+  .cb { font-size: 9pt; white-space: nowrap; }
+  .cb b { font-weight: 400; margin-right: 3mm; }
+
+  /* ---------- 分区 ---------- */
+  .sec {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    margin: 3.6mm 0 2mm;
+    font-size: 9.6pt;
+    font-weight: 700;
+  }
+  .sec .tag {
+    display: inline-block;
+    padding: .4mm 1.8mm;
+    background: #111;
+    color: #fff;
+    font-size: 7.4pt;
+    font-weight: 400;
+    letter-spacing: .3pt;
+  }
+  .sec .hint {
+    margin-left: auto;
+    font-size: 7.4pt;
+    font-weight: 400;
+    color: #666;
+  }
+
+  /* ---------- 问题 ---------- */
+  .q {
+    display: grid;
+    grid-template-columns: 5mm 1fr;
+    margin-bottom: 2mm;
+  }
+  .q .n {
+    font-size: 9pt;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .q .body { min-width: 0; }
+  .q .qt {
+    font-size: 9pt;
+    line-height: 1.35;
+    margin-bottom: .8mm;
+  }
+  .q .qt em {
+    font-style: normal;
+    color: #666;
+    font-size: 8pt;
+  }
+  .line {
+    height: 5.4mm;
+    border-bottom: .5pt solid #c4c4c4;
+  }
+
+  /* ---------- 原话 / 量化 ---------- */
+  .quote-box {
+    border: .7pt solid #111;
+    padding: 2mm 2.6mm 1mm;
+  }
+  .quote-box .line { border-bottom-style: dashed; border-color: #a8a8a8; }
+
+  .tally {
+    margin-top: 2.6mm;
+    font-size: 8.6pt;
+    line-height: 2;
+  }
+  .tally .blank {
+    display: inline-block;
+    min-width: 8mm;
+    border-bottom: .5pt solid #9a9a9a;
+    transform: translateY(1px);
+  }
+
+  /* ---------- 页脚 ---------- */
+  .foot {
+    margin-top: 3mm;
+    padding-top: 2mm;
+    border-top: .5pt solid #bbb;
+    font-size: 7.4pt;
+    color: #666;
+    display: flex;
+    justify-content: space-between;
+    gap: 6mm;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .sheet {
+      width: auto;
+      min-height: auto;
+      margin: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="head">
+    <div>
+      <h1>知课 AI · 用户访谈记录表</h1>
+      <div class="sub">创熠 AI 聚变黑客松 ｜ AI+教育赛道 ｜ 赛前需求调研</div>
+    </div>
+    <div class="purpose">
+      追问三连：然后呢 / 举个例子 / 大概多久<br>只问“上次怎么做的”，不问“你会用吗”
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="fld">
+      <span class="k">受访者</span>
+      <span class="v"></span>
+    </div>
+    <div class="fld">
+      <span class="k">身份</span>
+      <span class="cb"><b>□ 教师</b><b>□ 学生</b></span>
+    </div>
+    <div class="fld">
+      <span class="k">院系 / 所授课程</span>
+      <span class="v"></span>
+    </div>
+    <div class="fld">
+      <span class="k">教龄 / 年级</span>
+      <span class="v"></span>
+    </div>
+    <div class="fld">
+      <span class="k">班级规模 / 每周作业量</span>
+      <span class="v"></span>
+    </div>
+    <div class="fld">
+      <span class="k">日期 / 时长</span>
+      <span class="v"></span>
+    </div>
+  </div>
+
+  <div class="sec">
+    <span class="tag">教师版</span>
+    教学与批改现状
+    <span class="hint">6 问 · 每问验证一个产品假设</span>
+  </div>
+
+  <div class="q">
+    <div class="n">1</div>
+    <div class="body">
+      <div class="qt">这门课，学生现在怎么拿到您的课件？<em>以 PPT 为主，还是教材和板书？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">2</div>
+    <div class="body">
+      <div class="qt">最近一次单元测验的题是哪来的？<em>自己出、题库，还是教材配套？出了多久？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">3</div>
+    <div class="body">
+      <div class="qt">最近一次作业有多少份？<em>从收上来到发回学生，中间隔了几天？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">4</div>
+    <div class="body">
+      <div class="qt">主观题您怎么给分、写不写评语？<em>一份大概花多久？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">5</div>
+    <div class="body">
+      <div class="qt">测验之后，您怎么知道全班哪道题错得多？<em>这个过程要花多久？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">6</div>
+    <div class="body">
+      <div class="qt">如果 AI 帮您出题和批改，哪一步必须由您拍板？<em>这题决定 Demo 的教师复核设计</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <span class="tag">学生版</span>
+    学习与求助现状
+    <span class="hint">5 问 · 用“最近一次”代替“一般”</span>
+  </div>
+
+  <div class="q">
+    <div class="n">1</div>
+    <div class="body">
+      <div class="qt">上课时你主要靠什么记笔记和复习？<em>PPT、教材、拍照，还是抄板书？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">2</div>
+    <div class="body">
+      <div class="qt">最近一次上课没听懂，你课后具体做了什么？</div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">3</div>
+    <div class="body">
+      <div class="qt">那次想过去问老师吗？<em>最后问了吗？没问的原因是什么？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">4</div>
+    <div class="body">
+      <div class="qt">作业发回来，你第一眼看什么？会看评语和错因吗？</div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="q">
+    <div class="n">5</div>
+    <div class="body">
+      <div class="qt">你用 AI 问过学习问题吗？<em>最近一次问的是什么，回答有用吗？</em></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <span class="tag">关键证据</span>
+    能直接放进 PPT 的原话
+    <span class="hint">抄原句，不要概括</span>
+  </div>
+
+  <div class="quote-box">
+    <div class="line"></div>
+    <div class="line"></div>
+    <div class="line"></div>
+  </div>
+
+  <div class="tally">
+    共访谈 教师 <span class="blank"></span> 位 / 学生 <span class="blank"></span> 位；
+    谈到「出题或批改占大量时间」<span class="blank"></span> 位；
+    「共性错题靠印象判断」<span class="blank"></span> 位；
+    「课后最终没去问老师」<span class="blank"></span> 位；
+    「用过 AI 但答案不可靠」<span class="blank"></span> 位。
+  </div>
+
+  <div class="foot">
+    <span>录音 / 拍照须先征得同意 · 不记录姓名与学号 · 不承诺产品功能</span>
+    <span>记录人：__________</span>
+  </div>
+
+</div>
+</body>
+</html>

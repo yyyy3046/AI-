@@ -1,0 +1,8 @@
+# Trae IDE internal artifacts
+.trae/
+.trae-html-share-packages/
+.screenshots/
+
+# Trae manifest / session log files
+*.manifest.json
+*.ndjson
