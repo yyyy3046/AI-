@@ -419,9 +419,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   padding: 12px 16px; border-bottom: 1px solid var(--border);
 }
 .mm-hint { font-size: 11.5px; color: var(--text-3); margin-left: auto; }
-.mindmap-scroll { overflow: auto; max-height: 640px; padding: 4px 16px 20px; }
-.mindmap-canvas { position: relative; margin: 14px auto 0; }
+.mindmap-scroll { display: flex; align-items: flex-start; overflow: auto; max-height: 640px; padding: 4px 16px 20px; }
+.mm-stage { position: relative; margin: 14px auto 0; flex: 0 0 auto; }
+.mindmap-canvas { position: relative; margin: 0; transform-origin: 0 0; }
 .mm-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
+.mm-zoom { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.mm-zoom-btn { width: 26px; height: 26px; border: none; background: transparent; cursor: pointer; border-radius: 6px; font-size: 15px; line-height: 1; color: var(--text-2); display: inline-grid; place-items: center; }
+.mm-zoom-btn:hover { background: var(--surface-2); color: var(--text); }
+.mm-zoom-label { min-width: 42px; text-align: center; font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .mm-lines path { fill: none; stroke: #C9D3E6; stroke-width: 1.4; }
 .mm-lines circle { fill: #C9D3E6; }
 .tree-node {
@@ -608,6 +613,22 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .ppt-page-chip { min-width: 150px; }
   .ppt-slide { aspect-ratio: auto; min-height: 300px; }
 }
+
+/* AI 问答关联课件 */
+.ai-context {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); margin-bottom: 16px; flex-wrap: wrap;
+}
+.ai-context-main { display: flex; align-items: center; gap: 10px; }
+.ai-context-main b { font-size: 14px; }
+.ai-context-main span { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.ai-context-select { max-width: 300px; }
+.ai-context-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex: 1; min-width: 280px; }
+.ai-chapter-row, .ai-section-tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ai-context-controls .chip-btn.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.ai-context-controls .ai-context-select { width: 100%; max-width: 100%; }
+.teacher-ppt-modal { width: 860px; }
 .modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ============ 表单 ============ */
@@ -839,9 +860,18 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   cursor: pointer; font-family: inherit;
 }
 .cite-chip:hover { background: var(--brand); color: #fff; }
+.cite-source {
+  margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--brand);
+  background: var(--surface-2); border-radius: 0 8px 8px 0;
+}
+.cite-source b { display: block; font-size: 12px; color: var(--brand); margin-bottom: 2px; }
+.cite-source span { display: block; font-size: 11.5px; color: var(--text-3); margin-bottom: 6px; }
+.cite-source p { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-2); }
 @media (max-width: 640px) {
   .chat-msg { max-width: 100%; }
   .chat-body { max-height: none; }
+  .ai-context-controls { align-items: flex-start; }
+  .ai-chapter-row, .ai-section-tabs { justify-content: flex-start; }
 }
 
 /* ============ 看板 ============ */

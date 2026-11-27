@@ -13,6 +13,7 @@ const ui = {
   editQuestionId: null,
   mmCollapsed: {},
   mmEdit: false,
+  mmScale: 1,
   editingNode: null,
   activeQuestionId: 'q1',
   qaTab: 'private',
@@ -33,6 +34,9 @@ const ui = {
   pendingJoin: '',
   learnTab: 'map',
   pptPage: null,
+  aiPage: null,
+  aiSection: null,
+  pptPreviewPage: null,
   aiHomeChat: [],
   activeAiQuestionId: null,
   scanOpen: false,
@@ -112,6 +116,9 @@ function resetDb() {
   ui.practiceItem = null;
   ui.learnTab = 'map';
   ui.pptPage = null;
+  ui.aiPage = null;
+  ui.aiSection = null;
+  ui.pptPreviewPage = null;
   ui.wrongCourseId = '';
   ui.wrongSelected = [];
   ui.wrongPointFilter = '';
@@ -317,10 +324,22 @@ function myExerciseSubmission(distId) {
 
 /* ---------------- 模拟 AI ---------------- */
 
-/** 统一生成课件引用，保证每段 AI 输出都能回溯课本 */
+/** 定位知识点所属章节与小节 */
+function sectionTitleOfPoint(point) {
+  if (!point) return { chapter: '', section: '' };
+  for (const chapter of db.mindMap) {
+    const section = chapter.sections.find(s => s.id === point.sectionId);
+    if (section) return { chapter: chapter.title, section: section.title };
+  }
+  return { chapter: '', section: '' };
+}
+
+/** 统一生成教材引用，保证每段 AI 输出都能回溯课本原文 */
 function citePoint(point, withExcerpt) {
   if (!point) return '';
-  const head = `课件依据：《${db.courseware.fileName}》第 ${point.page} 页 · ${point.title}`;
+  const where = sectionTitleOfPoint(point);
+  const place = [where.chapter, where.section].filter(Boolean).join(' · ');
+  const head = `教材依据：${place ? place + '，' : ''}第 ${point.page} 页「${point.title}」`;
   return withExcerpt ? `${head}\n原文：“${point.excerpt}”` : `（${head}）`;
 }
 

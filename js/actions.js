@@ -390,6 +390,7 @@ function switchStudentCourse(courseId, silent) {
   ui.sectionId = db.mindMap[0]?.sections[0]?.id || null;
   ui.mmCollapsed = {};
   ui.mmEdit = false;
+  ui.mmScale = 1;
   ui.editingNode = null;
   ui.drawerPointId = null;
   ui.practiceItem = null;
@@ -428,6 +429,45 @@ function openCoursewareAt(page) {
   ui.pptPage = Number(page) || null;
   if (location.hash !== '#/student/learn') location.hash = '#/student/learn';
   render();
+}
+
+/* ---------------- 教师课件管理 ---------------- */
+
+function openTeacherPpt(page) {
+  const pages = coursewarePages();
+  ui.pptPreviewPage = Number(page) || (pages[0] ? pages[0].page : 1);
+  render();
+}
+
+function gotoTeacherPptPage(page) {
+  const target = Number(page);
+  if (!target) return;
+  ui.pptPreviewPage = target;
+  render();
+}
+
+function closeTeacherPpt() {
+  ui.pptPreviewPage = null;
+  render();
+}
+
+/** 保存教师标注的知识点课件页码 */
+function savePointPages() {
+  let changed = 0;
+  document.querySelectorAll('[data-point-page]').forEach(input => {
+    const point = P(input.dataset.pointPage);
+    const value = Number(input.value);
+    if (!point || !value || value === point.page) return;
+    point.page = value;
+    changed++;
+  });
+  if (!changed) {
+    toast('页码没有变化');
+    return;
+  }
+  saveDb();
+  render();
+  toast(`已更新 ${changed} 个知识点的课件页码，学生端同步`);
 }
 
 /** 在学生作业页右侧查看某次已完成的作业/习题 */
@@ -806,6 +846,7 @@ function onScanResult(text) {
 
 function resetDemo() {
   resetDb();
+  ui.mmScale = 1;
   location.hash = '#/login';
   render();
   toast('演示数据已重置');
@@ -1261,27 +1302,92 @@ function matchPointByText(text) {
   return best;
 }
 
-function aiHomeReply(text) {
+function aiHomeReply(text, page) {
+  const pagePoints = page ? db.points.filter(point => point.page === Number(page)) : [];
   if (/练习题|来一道|出题|考考我/.test(text)) {
-    const question = db.questions.find(q => q.type === 'single') || db.questions[0];
+    const question = db.questions.find(q => q.type === 'single' && pagePoints.some(point => point.id === q.knowledgeId))
+      || db.questions.find(q => q.type === 'single')
+      || db.questions[0];
     const point = P(question.knowledgeId);
     return {
       pointId: point.id,
-      answer: `可以试试这道题：\n${question.stem}\n\n先自己判断，再点「给我一点提示」，不要直接看答案。题目对应课件第 ${point.page} 页「${point.title}」。`
+      page: point.page,
+      grounded: true,
+      source: {
+        page: point.page,
+        title: point.title,
+        section: sectionTitleOfPoint(point).section,
+        excerpt: point.excerpt
+      },
+      answer: `可以试试这道题：\n${question.stem}\n\n先自己判断，再点「给我一点提示」，不要直接看答案。\n\n${citePoint(point, true)}`
     };
   }
 
-  const point = matchPointByText(text);
+  const matched = matchPointByText(text);
+  const point = matched || pagePoints[0];
   if (!point) {
     return {
       pointId: null,
-      answer: `我在课件里没有检索到直接对应的段落。可以换一个课件中的术语再问，或者从「知识导图」点开对应章节，我会按第 ${db.points[0].page} 页起的相关段落继续解释。`
+      page: null,
+      grounded: false,
+      source: null,
+      answer: `教材（第一章第四、五节，P13—24）中没有检索到与「${text}」直接对应的定义或例题。\n为避免给出超出教材的说法，我不做额外发挥；建议换用教材中的术语提问，或直接向老师确认。`
     };
   }
   return {
     pointId: point.id,
-    answer: `${point.summary}\n核心公式：${point.formulas[0]}\n课件依据：《${db.courseware.fileName}》第 ${point.page} 页「${point.title}」。`
+    page: point.page,
+    grounded: true,
+    source: {
+      page: point.page,
+      title: point.title,
+      section: sectionTitleOfPoint(point).section,
+      excerpt: point.excerpt
+    },
+    answer: `${matched ? '' : `教材中没有直接出现你这句话的表述，我先按当前页「${point.title}」回答：\n\n`}${point.summary}\n\n核心结论：${point.formulas[0]}\n\n${citePoint(point, true)}`
   };
+}
+
+/** 当前提问关联的教材页：优先所选小节，其次手动选择，最后第一页 */
+function aiSectionChoices() {
+  return sectionsWithPages().flatMap(group => group.sections.map(item => ({ chapter: group.chapter, ...item })));
+}
+
+function aiCurrentPage() {
+  const flat = aiSectionChoices();
+  if (!flat.length) return null;
+  if (ui.aiSection) {
+    const section = flat.find(item => item.section.id === ui.aiSection);
+    if (section && section.pages.length) {
+      const wanted = Number(ui.aiPage);
+      return section.pages.includes(wanted) ? wanted : section.pages[0];
+    }
+  }
+  const pages = coursewarePages();
+  const wanted = Number(ui.aiPage || ui.pptPage);
+  return pages.some(item => item.page === wanted) ? wanted : pages[0].page;
+}
+
+function setAiPage(page) {
+  const value = Number(page) || null;
+  ui.aiPage = value;
+  const section = aiSectionChoices().find(item => item.pages.includes(value));
+  if (section) ui.aiSection = section.section.id;
+  render();
+}
+
+function setAiSection(sectionId) {
+  const section = aiSectionChoices().find(item => item.section.id === sectionId);
+  if (!section) return;
+  ui.aiSection = sectionId;
+  ui.aiPage = section.pages[0] || null;
+  render();
+}
+
+function setAiChapter(chapterId) {
+  const group = sectionsWithPages().find(item => item.chapter.id === chapterId);
+  if (!group || !group.sections.length) return;
+  setAiSection(group.sections[0].section.id);
 }
 
 function askAiHome(text) {
@@ -1290,9 +1396,17 @@ function askAiHome(text) {
     toast('先输入你的问题');
     return false;
   }
-  const reply = aiHomeReply(question);
+  const page = aiCurrentPage();
+  const reply = aiHomeReply(question, page);
   ui.aiHomeChat.push({ role: 'user', text: question });
-  ui.aiHomeChat.push({ role: 'ai', text: reply.answer, pointId: reply.pointId });
+  ui.aiHomeChat.push({
+    role: 'ai',
+    text: reply.answer,
+    pointId: reply.pointId,
+    page: reply.page,
+    grounded: reply.grounded,
+    source: reply.source
+  });
 
   db.aiQuestions.unshift({
     id: `aiq-${Date.now()}`,

@@ -414,6 +414,7 @@ function mindmapView() {
 
   const height = Math.max(padTop * 2 + cursor * rowH, 220);
   const width = colX[3] + colW[3];
+  const scale = Math.max(0.4, Math.min(3, Number(ui.mmScale) || 1));
 
   const paths = links.map(({ from, to }) => {
     const x1 = from.x + from.w;
@@ -452,13 +453,21 @@ function mindmapView() {
     <span class="badge brand">章节</span>
     <span class="badge">小节</span>
     <span class="badge ai">知识点</span>
-    <span class="mm-hint">点击章节或小节可折叠，点击知识点查看公式与课件页码</span>
+    <span class="mm-hint">点击章节或小节可折叠，点击知识点查看公式与课件页码 · Ctrl + 滚轮或右侧按钮可缩放</span>
+    <div class="mm-zoom">
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="out" title="缩小">－</button>
+      <span class="mm-zoom-label">${Math.round(scale * 100)}%</span>
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="in" title="放大">＋</button>
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="reset" title="重置为 100%">⟲</button>
+    </div>
     ${db.session.role === 'teacher' ? `<button class="btn btn-sm ${ui.mmEdit ? 'btn-primary' : ''}" data-act="toggle-mm-edit">${ui.mmEdit ? '完成编辑' : '✏️ 编辑导图'}</button>` : ''}
   </div>
   <div class="mindmap-scroll">
-    <div class="mindmap-canvas" style="width:${width}px;height:${height}px">
-      <svg class="mm-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths}</svg>
-      ${nodeHtml}
+    <div class="mm-stage" style="width:${Math.ceil(width * scale)}px;height:${Math.ceil(height * scale)}px">
+      <div class="mindmap-canvas" style="width:${width}px;height:${height}px;transform:scale(${scale});transform-origin:0 0">
+        <svg class="mm-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths}</svg>
+        ${nodeHtml}
+      </div>
     </div>
   </div>
   ${db.session.role === 'teacher' && ui.mmEdit ? mindmapEditor() : ''}`;

@@ -3,7 +3,7 @@
  * 支持三门课程：高等数学 / 大学物理 / 电磁场
  * ============================================================ */
 
-const STORAGE_KEY = 'zhike-ai-demo:v11';
+const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
@@ -171,6 +171,10 @@ function buildExamPapers(subject) {
 
 /** 教材例题（教师端可见，含解析）与课后习题（可下发，学生端只见题目） */
 function buildTextbook(subject) {
+  /* 已按真实教材整理例题与习题的课程，直接使用其教材数据 */
+  if (subject.textbook && subject.textbook.examples && subject.textbook.exercises) {
+    return clone(subject.textbook);
+  }
   const levels = ['基础', '提高', '综合'];
 
   const examples = subject.points.map((point, index) => ({
@@ -201,6 +205,7 @@ function buildTextbook(subject) {
 
 function buildSeed() {  const seed = {
     version: 3,
+  storageKey: STORAGE_KEY,
     session: { role: null, userId: null },
     courseId: 'math',
     courses: {},

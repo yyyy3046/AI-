@@ -114,6 +114,44 @@ function coursewarePages() {
     .map(page => ({ page, points: map[page] }));
 }
 
+/** 按章节/小节聚合有知识点标注的页码 */
+function sectionsWithPages() {
+  return db.mindMap.map(chapter => ({
+    chapter,
+    sections: chapter.sections.map(section => {
+      const points = section.points.map(P).filter(Boolean).sort((a, b) => a.page - b.page);
+      const pages = [...new Set(points.map(point => point.page))];
+      return { section, points, pages };
+    }).filter(item => item.points.length)
+  })).filter(item => item.sections.length);
+}
+
+/** 单页幻灯片，学生端与教师预览共用 */
+function pptSlideHtml(pageData, total) {
+  const main = pageData.points[0];
+  const more = pageData.points.slice(1);
+  return `
+  <div class="ppt-slide">
+    <div class="ppt-slide-top">
+      <span>${esc(db.course.name)} · ${esc(db.course.code)}</span>
+      <span>第 ${pageData.page} 页 / 共 ${total} 页</span>
+    </div>
+    <h2>${esc(main.title)}</h2>
+    <p class="ppt-summary">${esc(main.summary || '')}</p>
+    ${main.formulas && main.formulas.length ? `
+      <div class="ppt-formulas">${main.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}
+    ${more.length ? `
+      <div class="ppt-more">
+        <div class="ppt-more-title">本页还包含</div>
+        ${more.map(point => `<button class="chip-btn" data-act="open-point" data-id="${point.id}">${esc(point.title)}</button>`).join('')}
+      </div>` : ''}
+    <div class="ppt-slide-foot">
+      <span>${esc(main.excerpt || '')}</span>
+      <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${main.id}">在导图中查看 →</button>
+    </div>
+  </div>`;
+}
+
 function coursewareView() {
   const pages = coursewarePages();
   if (!pages.length) {
@@ -124,8 +162,6 @@ function coursewareView() {
   const index = pages.indexOf(current);
   const prev = pages[index - 1];
   const next = pages[index + 1];
-  const main = current.points[0];
-  const more = current.points.slice(1);
 
   return `
   <div class="card-body ppt-layout">
@@ -139,27 +175,7 @@ function coursewareView() {
     </div>
 
     <div class="ppt-main">
-      <div class="ppt-stage">
-        <div class="ppt-slide">
-          <div class="ppt-slide-top">
-            <span>${esc(db.course.name)} · ${esc(db.course.code)}</span>
-            <span>第 ${current.page} 页 / 共 ${total} 页</span>
-          </div>
-          <h2>${esc(main.title)}</h2>
-          <p class="ppt-summary">${esc(main.summary || '')}</p>
-          ${main.formulas && main.formulas.length ? `
-            <div class="ppt-formulas">${main.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}
-          ${more.length ? `
-            <div class="ppt-more">
-              <div class="ppt-more-title">本页还包含</div>
-              ${more.map(point => `<button class="chip-btn" data-act="open-point" data-id="${point.id}">${esc(point.title)}</button>`).join('')}
-            </div>` : ''}
-          <div class="ppt-slide-foot">
-            <span>${esc(main.excerpt || '')}</span>
-            <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${main.id}">在导图中查看 →</button>
-          </div>
-        </div>
-      </div>
+      <div class="ppt-stage">${pptSlideHtml(current, total)}</div>
       <div class="ppt-nav">
         <button class="btn btn-sm" data-act="ppt-page" data-page="${prev ? prev.page : ''}" ${prev ? '' : 'disabled'}>← 上一页</button>
         <span class="ppt-nav-hint">当前第 ${current.page} 页 · 已标注页 ${index + 1}/${pages.length}</span>
@@ -176,17 +192,37 @@ function aiChatView() {
     '给我一道练习题'
   ];
 
+  const pages = coursewarePages();
+  const aiPage = aiCurrentPage();
+  const pageTitles = {};
+  pages.forEach(item => { pageTitles[item.page] = item.points[0].title; });
+  const chapterGroups = sectionsWithPages();
+  const flatSections = chapterGroups.flatMap(group => group.sections.map(item => ({ chapter: group.chapter, ...item })));
+  const activeSection = flatSections.find(item => item.section.id === ui.aiSection)
+    || flatSections.find(item => item.pages.includes(aiPage))
+    || flatSections[0];
+  const sectionPages = activeSection ? activeSection.pages : [];
+  const activePage = sectionPages.includes(aiPage) ? aiPage : (sectionPages[0] || aiPage);
+
   const bubbles = history.map(msg => {
     if (msg.role === 'user') {
       return `<div class="chat-msg user"><div class="chat-bubble">${esc(msg.text)}</div></div>`;
     }
     const point = msg.pointId ? P(msg.pointId) : null;
+    const page = msg.page || (point ? point.page : null);
     return `
     <div class="chat-msg bot">
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
         ${esc(msg.text)}
-        ${point ? `<button class="cite-chip" data-act="open-point" data-id="${point.id}">查看课件第 ${point.page} 页 →</button>` : ''}
+        ${page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
+        ${msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
+        ${msg.source ? `
+          <div class="cite-source">
+            <b>教材原文 · 第 ${msg.source.page} 页</b>
+            <span>${esc(msg.source.section || '')}${msg.source.title ? ' · ' + esc(msg.source.title) : ''}</span>
+            <p>${esc(msg.source.excerpt)}</p>
+          </div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -195,10 +231,33 @@ function aiChatView() {
   <div class="page-head">
     <div>
       <h1>AI 问答</h1>
-      <p>回答基于本课程课件，均标注页码可核对；提问会汇总给老师用于讲评</p>
+      <p>回答严格依据教材第一章第四、五节（P13—24），每条回答附教材原文与页码，教材未覆盖会明确说明</p>
     </div>
     <span class="badge ai">课件依据</span>
   </div>
+
+  ${flatSections.length ? `
+  <div class="ai-context">
+    <div class="ai-context-main">
+      <span class="badge ai">关联教材</span>
+      <div><b>${esc(activeSection.section.title)} · 第 ${activePage} 页</b><span>按章节、小节或页码选择，提问优先依据所选教材页</span></div>
+    </div>
+    <div class="ai-context-controls">
+      <div class="ai-chapter-row">
+        ${chapterGroups.map(group => `
+          <button class="chip-btn ${activeSection.chapter.id === group.chapter.id ? 'active' : ''}"
+            data-act="ai-chapter" data-id="${group.chapter.id}">${esc(group.chapter.title)}</button>`).join('')}
+      </div>
+      <div class="ai-section-tabs">
+        ${flatSections.map(item => `
+          <button class="chip-btn ${item.section.id === activeSection.section.id ? 'active' : ''}"
+            data-act="ai-section" data-id="${item.section.id}">${esc(item.section.title)}</button>`).join('')}
+      </div>
+      <select class="input ai-context-select" id="ai-page-select">
+        ${sectionPages.map(page => `<option value="${page}" ${page === activePage ? 'selected' : ''}>第 ${page} 页 · ${esc(pageTitles[page] || '')}</option>`).join('')}
+      </select>
+    </div>
+  </div>` : ''}
 
   <div class="card chat-card">
     <div class="chat-body">
@@ -206,7 +265,7 @@ function aiChatView() {
       <div class="chat-welcome">
         <span class="chat-avatar big">AI</span>
         <b>我是这门课的 AI 助教</b>
-        <p>可以问我课件里的概念、公式和例题。我会给出课件页码，方便你核对原文；如果题目卡住，也可以让我给一点提示。</p>
+        <p>我只依据教材第 13—24 页回答，每条结论都会附教材原文和页码；如果教材没有相关内容，我会直接说明，不凭空补充。你可以从当前关联的课件页开始提问。</p>
       </div>`}
     </div>
     <div class="chat-input">

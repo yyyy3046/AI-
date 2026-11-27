@@ -1,5 +1,6 @@
 window.SUBJECTS = window.SUBJECTS || {};
 
+/* 高等数学：内容按用户提供的教材扫描件（第一章 第13—24页）整理 */
 window.SUBJECTS.math = {
   id: 'math',
   course: {
@@ -7,189 +8,345 @@ window.SUBJECTS.math = {
     className: '人工智能 2401 班', studentCount: 24
   },
   courseware: {
-    fileName: '高等数学·极限与积分.pptx', size: '3.8 MB', pages: 42,
-    uploadedAt: '11-28 09:05', status: 'done'
+    fileName: '高等数学·第一章 第四、五节（P13-24）.pdf', size: '5.7 MB', pages: 24,
+    uploadedAt: '11-27 20:40', status: 'done'
   },
   mindMap: [
     {
-      id: 'm-c1', title: '极限与连续', meta: '第 1—2 章',
+      id: 'm-c1', title: '第一章 函数、极限与连续', meta: '第四、五节 · 教材 P13—24',
       sections: [
-        { id: 'm-s1', title: '极限的概念', points: ['m-k1'] },
-        { id: 'm-s2', title: '两个重要极限', points: ['m-k2'] }
-      ]
-    },
-    {
-      id: 'm-c2', title: '一元函数微分学', meta: '第 3—4 章',
-      sections: [
-        { id: 'm-s3', title: '导数与微分', points: ['m-k3'] },
-        { id: 'm-s4', title: '洛必达法则', points: ['m-k4'] }
-      ]
-    },
-    {
-      id: 'm-c3', title: '一元函数积分学', meta: '第 5—6 章',
-      sections: [
-        { id: 'm-s5', title: '不定积分', points: ['m-k5'] },
-        { id: 'm-s6', title: '定积分', points: ['m-k6'] }
+        { id: 'm-s1', title: '第四节 函数的极限', points: ['m-k1', 'm-k2', 'm-k3', 'm-k4', 'm-k5'] },
+        { id: 'm-s2', title: '第五节 极限的运算法则', points: ['m-k6', 'm-k7', 'm-k8', 'm-k9', 'm-k10'] }
       ]
     }
   ],
   points: [
     {
-      id: 'm-k1', chapterId: 'm-c1', sectionId: 'm-s1', title: '数列极限的 ε-N 定义',
-      summary: '当项数 n 足够大时，数列项与常数 A 的距离可以任意小，就称 A 是该数列的极限。',
-      formulas: ['∀ε > 0, ∃N, 当 n > N 时,  |aₙ − A| < ε'],
+      id: 'm-k1', chapterId: 'm-c1', sectionId: 'm-s1', title: 'x→∞ 时函数的极限',
+      summary: '当 |x| 无限增大时，函数值与常数 A 的距离可以任意小，就称 A 是 x→∞ 时 f(x) 的极限。',
+      formulas: ['∀ε>0，∃X>0，当 |x|>X 时，|f(x)−A|<ε', 'lim(x→∞) f(x)=A ⇔ lim(x→+∞) f(x)=lim(x→−∞) f(x)=A'],
       params: [
-        { sym: 'ε', name: '任意小的正数', desc: '用来刻画“任意接近”的程度，可以取任意小' },
-        { sym: 'N', name: '项数下标', desc: '与 ε 有关，保证 N 之后的项都满足不等式' },
-        { sym: 'A', name: '极限值', desc: '数列最终趋近的常数' }
+        { sym: 'ε', name: '任意小的正数', desc: '刻画函数值与 A 的接近程度' },
+        { sym: 'X', name: '正数阈值', desc: '与 ε 有关，保证 |x|>X 后不等式成立' },
+        { sym: 'A', name: '极限值', desc: 'x 无限增大时函数趋近的常数' }
       ],
-      example: '数列 aₙ = 1/n 的极限为 0：取 ε = 0.01，只要 n > 100，就有 |1/n| < 0.01。',
-      page: 8,
-      excerpt: '极限的 ε-N 定义把“无限接近”精确化为不等式语言，是连续性、导数与积分概念的共同基础。'
-    },
-    {
-      id: 'm-k2', chapterId: 'm-c1', sectionId: 'm-s2', title: '两个重要极限',
-      summary: '两个在极限计算中反复出现的基本结果，分别处理含三角函数的 0/0 型与幂指型极限。',
-      formulas: ['lim(x→0) sin x / x = 1', 'lim(x→∞) (1 + 1/x)ˣ = e'],
-      params: [
-        { sym: 'x', name: '自变量', desc: '第一个极限中 x 趋于 0，第二个中 x 趋于无穷' },
-        { sym: 'e', name: '自然常数', desc: '约等于 2.71828，是自然对数函数的底数' }
-      ],
-      example: '计算 lim(x→0) sin3x / x：变形为 3 · sin3x/(3x)，由重要极限得结果为 3。',
+      example: '教材第 14 页 例 1：证明 lim(x→∞) 1/x = 0。任给 ε>0，取 X=1/ε，当 |x|>X 时，|1/x−0|<ε。',
       page: 14,
-      excerpt: '第一个重要极限常用于含 sin、tan 的 0/0 型极限，第二个重要极限是自然指数 e 的定义来源。'
+      excerpt: '教材第 13—14 页：定义 1 给出 x→∞ 时极限的 ε-X 定义，图 1.12 是几何解释；性质 1 说明双侧极限等于左右两侧极限且相等。'
     },
     {
-      id: 'm-k3', chapterId: 'm-c2', sectionId: 'm-s3', title: '导数的定义',
-      summary: '函数在某点的导数，就是自变量增量趋于 0 时平均变化率的极限，几何上表示切线斜率。',
-      formulas: ["f′(x₀) = lim(Δx→0) [f(x₀ + Δx) − f(x₀)] / Δx"],
+      id: 'm-k2', chapterId: 'm-c1', sectionId: 'm-s1', title: 'x→x₀ 时函数的极限',
+      summary: '当 x 无限接近 x₀（但不等于 x₀）时，f(x) 无限接近 A，就称 A 是 x→x₀ 时的极限；与 f 在 x₀ 是否有定义无关。',
+      formulas: ['∀ε>0，∃δ>0，当 0<|x−x₀|<δ 时，|f(x)−A|<ε', 'lim(x→x₀) f(x)=A'],
       params: [
-        { sym: 'Δx', name: '自变量增量', desc: '趋于 0 的微小变化量' },
-        { sym: 'f′(x₀)', name: '该点的导数', desc: '函数在该点的瞬时变化率，也就是切线斜率' }
+        { sym: 'δ', name: '去心邻域半径', desc: '与 ε 有关，控制 x 与 x₀ 的距离' },
+        { sym: '0<|x−x₀|', name: '去心条件', desc: 'x 可以无限接近 x₀，但取不到 x₀' },
+        { sym: 'A', name: '极限值', desc: 'x 趋近 x₀ 时函数趋近的常数' }
       ],
-      example: 'f(x) = x² 在 x = 2 处：f′(2) = lim[(2+Δx)² − 4]/Δx = lim(4 + Δx) = 4。',
+      example: '教材第 15 页 例 2：用定义证明 lim(x→x₀) √x = √x₀（x₀>0）。取 δ=ε√x₀，当 0<|x−x₀|<δ 时即可证得。',
+      page: 15,
+      excerpt: '教材第 15 页：定义 2 与图 1.14 的几何解释。f₁(x)=x+1 与 f₂(x)=(x²−1)/(x−1) 在 x→1 时都趋于 2，说明极限与 x₀ 处是否有定义无关。'
+    },
+    {
+      id: 'm-k3', chapterId: 'm-c1', sectionId: 'm-s1', title: '左极限与右极限',
+      summary: '从 x₀ 左侧或右侧趋近得到的极限称为单侧极限；双侧极限存在的充要条件是左右极限都存在且相等。',
+      formulas: ['lim(x→x₀⁻) f(x)=A（左极限）', 'lim(x→x₀⁺) f(x)=A（右极限）', 'lim(x→x₀) f(x)=A ⇔ lim(x→x₀⁻) f(x)=lim(x→x₀⁺) f(x)=A'],
+      params: [
+        { sym: 'x→x₀⁻', name: '左侧趋近', desc: 'x 从小于 x₀ 的一侧趋近 x₀' },
+        { sym: 'x→x₀⁺', name: '右侧趋近', desc: 'x 从大于 x₀ 的一侧趋近 x₀' }
+      ],
+      example: '教材第 16 页 例 3：f(x)={1, x<0; x, x≥0}。左极限为 1，右极限为 0，二者不等，所以 lim(x→0) f(x) 不存在。',
+      page: 16,
+      excerpt: '教材第 16 页：单侧极限记号与性质 2。考察分段函数在分界点处的极限时，通常先分别求左右极限。'
+    },
+    {
+      id: 'm-k4', chapterId: 'm-c1', sectionId: 'm-s1', title: '函数极限的基本性质',
+      summary: '极限若存在则唯一；函数在极限点附近局部有界；极限值大于 0（或小于 0）时，函数在去心邻域内保持同号。',
+      formulas: ['若 lim f(x) 存在，则极限唯一', '若 lim f(x)=A，则 f 在 x₀ 的某去心邻域内有界', '若 lim f(x)=A 且 A>0（或 A<0），则邻域内 f(x)>0（或 f(x)<0）'],
+      params: [
+        { sym: '唯一性', name: '极限唯一', desc: '一个函数在同一过程中不可能有两个不同的极限' },
+        { sym: '局部有界', name: '邻域内有界', desc: '只保证在极限点附近有界，不保证在整个定义域有界' },
+        { sym: '局部保号', name: '邻域内保号', desc: '由 f(x)>0 只能推出 A≥0，不能推出 A>0' }
+      ],
+      example: '教材第 17 页 性质 3—5：用于判断函数在极限点附近的符号与有界性，是证明不等式和判断方程根的基础。',
+      page: 17,
+      excerpt: '教材第 17 页：性质 3 唯一性、性质 4 局部有界性、性质 5 局部保号性。注意保号性只能单向使用。'
+    },
+    {
+      id: 'm-k5', chapterId: 'm-c1', sectionId: 'm-s1', title: '无穷小与无穷大',
+      summary: '极限为 0 的变量称为无穷小；绝对值无限增大的变量称为无穷大。无穷大的倒数是无穷小，非零无穷小的倒数是无穷大。',
+      formulas: ['lim f(x)=0 ⇔ f(x) 为无穷小', 'lim f(x)=∞ ⇔ |f(x)| 无限增大', 'f 为无穷大且 f≠0 ⇒ 1/f 为无穷小', 'f 为无穷小且 f≠0 ⇒ 1/f 为无穷大'],
+      params: [
+        { sym: '无穷小', name: '极限为 0', desc: '是一个变量，不是很小的常数' },
+        { sym: '无穷大', name: '绝对值无限增大', desc: '表示极限不存在的一种趋势，不是数' },
+        { sym: '同一过程', name: '变化过程', desc: '讨论无穷小、无穷大必须指明 x→x₀ 或 x→∞' }
+      ],
+      example: '教材第 18 页：x→0 时 x 为无穷小，1/x 为无穷大；x→∞ 时 1/x、1/x² 为无穷小。',
+      page: 18,
+      excerpt: '教材第 17—18 页：定义 3、定义 4、定义 5 与性质 6。无穷大与无界变量是两个不同概念。'
+    },
+    {
+      id: 'm-k6', chapterId: 'm-c1', sectionId: 'm-s2', title: '无穷小的运算性质',
+      summary: '有限个无穷小之和仍为无穷小；有界函数与无穷小之积仍为无穷小；常数与无穷小之积、有限个无穷小之积仍为无穷小。',
+      formulas: ['lim α=0，lim β=0 ⇒ lim(α+β)=0', '|g(x)|≤M 且 lim α(x)=0 ⇒ lim g(x)α(x)=0', 'lim Cα(x)=0（C 为常数）', '有限个无穷小之积仍为无穷小'],
+      params: [
+        { sym: 'α, β', name: '无穷小', desc: '指同一变化过程中极限为 0 的变量' },
+        { sym: 'M', name: '有界函数的界', desc: '只要 g(x) 在邻域内有界即可' }
+      ],
+      example: '教材第 20 页：x→0 时 x 为无穷小，sin x 有界，所以 x sin x、x·sin(1/x) 都是无穷小。',
+      page: 20,
+      excerpt: '教材第 19—20 页：性质 1 及推论 1、推论 2。无穷大没有类似的运算法则，两个无穷大之和未必是无穷大。'
+    },
+    {
+      id: 'm-k7', chapterId: 'm-c1', sectionId: 'm-s2', title: '极限的四则运算法则',
+      summary: '若两个函数的极限都存在，则和、差、积的极限等于极限的和、差、积；分母极限不为 0 时，商的极限等于极限之商。',
+      formulas: ['lim[f(x)±g(x)]=lim f(x) ± lim g(x)', 'lim[f(x)·g(x)]=lim f(x) · lim g(x)', 'lim f(x)/g(x)=lim f(x)/lim g(x)（lim g(x)≠0）', 'lim[Cf(x)]=C·lim f(x)，lim[f(x)]ᵏ=[lim f(x)]ᵏ'],
+      params: [
+        { sym: '前提', name: '极限都存在', desc: '参与运算的两个极限都必须存在' },
+        { sym: '分母', name: '极限不为 0', desc: '商的法则要求分母的极限不等于 0' }
+      ],
+      example: '教材第 21 页 例 1：lim(x→2)(x²−3x+4)=2²−3×2+4=2。',
       page: 21,
-      excerpt: '导数是平均变化率的极限，因此它既能描述瞬时速度，也能描述曲线在某点的切线斜率。'
+      excerpt: '教材第 20—21 页：定理 1 及推论 3、推论 4；法则对 x→∞ 与单侧极限同样适用。'
     },
     {
-      id: 'm-k4', chapterId: 'm-c2', sectionId: 'm-s4', title: '洛必达法则',
-      summary: '当极限为 0/0 或 ∞/∞ 型时，可以用分子分母分别求导后的极限来代替原极限。',
-      formulas: ["lim f(x)/g(x) = lim f′(x)/g′(x)   （0/0 或 ∞/∞ 型）"],
+      id: 'm-k8', chapterId: 'm-c1', sectionId: 'm-s2', title: '复合函数的极限',
+      summary: '内层函数的极限为 u₀，外层函数在 u₀ 处极限为 A，且内层函数在去心邻域内不等于 u₀，则复合函数的极限为 A。',
+      formulas: ['lim(x→x₀) φ(x)=u₀', 'lim(u→u₀) f(u)=A', 'φ(x)≠u₀ ⇒ lim(x→x₀) f(φ(x))=A'],
       params: [
-        { sym: 'f′, g′', name: '分子分母的导数', desc: '必须分别求导，不能对整个分式求导' },
-        { sym: '0/0, ∞/∞', name: '未定式类型', desc: '只有满足这两种类型才能直接使用法则' }
+        { sym: 'φ(x)', name: '内层函数', desc: '其极限 u₀ 是外层函数的自变量趋近点' },
+        { sym: 'f(u)', name: '外层函数', desc: '在 u₀ 处的极限必须存在' },
+        { sym: 'φ(x)≠u₀', name: '去心条件', desc: '保证外层函数确实是在 u₀ 的极限过程中取值' }
       ],
-      example: 'lim(x→0) sin x / x 属于 0/0 型，用洛必达法则得 lim cos x / 1 = 1。',
-      page: 26,
-      excerpt: '使用洛必达法则前必须验证未定式类型，且求导后极限存在或为无穷大，否则法则失效。'
+      example: '教材第 21 页 定理 2：例如 lim(x→0) √(1+x)=1，可看作内层 1+x→1、外层 √u 在 u=1 处连续。',
+      page: 21,
+      excerpt: '教材第 21 页：定理 2 及使用条件，特别要求 φ(x) 在 x₀ 的去心邻域内不等于 u₀。'
     },
     {
-      id: 'm-k5', chapterId: 'm-c3', sectionId: 'm-s5', title: '不定积分',
-      summary: '求一个函数的全体原函数，结果要带上任意常数 C，因为常数求导后为 0。',
-      formulas: ['∫ f(x) dx = F(x) + C,  其中 F′(x) = f(x)'],
+      id: 'm-k9', chapterId: 'm-c1', sectionId: 'm-s2', title: '有理式极限：因式分解与同除最高次幂',
+      summary: '0/0 型先因式分解约去零因子；x→∞ 型将分子分母同除以最高次幂；再按分子分母次数比较得出结果。',
+      formulas: ['0/0 型：约去公因子后求极限', 'x→∞ 型：分子分母同除最高次幂', 'n=m 时极限为 aₙ/bₘ；n<m 时为 0；n>m 时为 ∞'],
       params: [
-        { sym: 'F(x)', name: '原函数', desc: '求导后等于被积函数 f(x) 的函数' },
-        { sym: 'C', name: '任意常数', desc: '表示原函数有无穷多个，不能省略' }
+        { sym: 'n, m', name: '分子分母次数', desc: '比较最高次幂判断 x→∞ 时的极限类型' },
+        { sym: '零因子', name: '导致 0/0 的因式', desc: '因式分解后约去，避免直接代入' }
       ],
-      example: '∫ 2x dx = x² + C，因为 (x² + C)′ = 2x。',
-      page: 33,
-      excerpt: '不定积分与求导互为逆运算，基本积分表可由基本求导公式反推得到。'
+      example: '教材第 22 页 例 3：lim(x→1)(x²+x−2)/(x²−3x+2)=lim(x→1)(x+2)/(x−2)=−3；例 5：lim(x→∞)(x²−x+1)/(2x²+x+2)=1/2。',
+      page: 22,
+      excerpt: '教材第 22—23 页：例 3—例 7，分别演示因式分解、同除最高次幂与次数比较法则。'
     },
     {
-      id: 'm-k6', chapterId: 'm-c3', sectionId: 'm-s6', title: '牛顿-莱布尼茨公式',
-      summary: '把定积分的计算转化为求原函数在两端点的函数值之差，是微积分的基本定理。',
-      formulas: ['∫(a→b) f(x) dx = F(b) − F(a)'],
+      id: 'm-k10', chapterId: 'm-c1', sectionId: 'm-s2', title: '根式与差式极限的变形',
+      summary: '含根号或两个无穷小之差时，先有理化或通分变形，再求极限。',
+      formulas: ['√A−√B = (A−B)/(√A+√B)', '例 8：lim(x→2)[x²/(x²−4) − 1/(x−2)] = 3/4', '例 9：lim(x→0)(√(1+x²)−1)/x² = 1/2'],
       params: [
-        { sym: 'a, b', name: '积分下限与上限', desc: '定积分的积分区间端点' },
-        { sym: 'F', name: 'f 的一个原函数', desc: '只需取任意一个原函数，常数 C 会相互抵消' }
+        { sym: '有理化', name: '分子或分母有理化', desc: '乘以共轭表达式消去根号差' },
+        { sym: '通分', name: '合并分式', desc: '把差式化为一个分式后再约分' }
       ],
-      example: '∫(0→1) 2x dx = [x²](0→1) = 1² − 0² = 1。',
-      page: 38,
-      excerpt: '该公式揭示了微分与积分之间的互逆关系，使定积分不必再用分割求和的方式计算。'
+      example: '教材第 23 页 例 9：lim(x→0)(√(1+x²)−1)/x²，分子有理化后约去 x²，得 1/2。',
+      page: 23,
+      excerpt: '教材第 23 页：例 8（通分）、例 9（分子有理化）。这类变形是处理根式与差式极限的常用方法。'
     }
   ],
   questions: [
     {
-      id: 'm-q1', type: 'single', stem: '极限 lim(x→0) sin x / x 的值是？',
-      options: ['0', '1', '∞', '不存在'], answer: 1, score: 10, knowledgeId: 'm-k2',
+      id: 'm-q1', type: 'single', stem: '极限 lim(x→1) (x²+x−2)/(x²−3x+2) 的值是？',
+      options: ['−3', '3', '0', '不存在'], answer: 0, score: 10, knowledgeId: 'm-k9',
       hints: [
-        '这是课件里的第一个重要极限，先判断它属于什么类型的未定式。',
-        '分子分母同时趋于 0，属于 0/0 型，可以直接套用重要极限的结果。',
-        '完整解析：lim(x→0) sin x / x = 1，这是第一个重要极限，也是推导 sin x 导数的基础。'
+        '先代入 x=1，看看分子分母是否同时为 0。',
+        '分子 x²+x−2=(x−1)(x+2)，分母 x²−3x+2=(x−1)(x−2)，约去公因子 x−1。',
+        '完整解析：原式 = lim(x→1)(x+2)/(x−2) = 3/(−1) = −3。'
       ],
       diagnosis: {
-        reason: '把 0/0 型未定式直接代入得 0，忽略了极限存在且等于 1 这一重要结论。',
-        advice: '回到课件第 14 页，重新记忆两个重要极限的形式与适用条件。',
-        similar: '计算 lim(x→0) tan x / x，并说明它与第一个重要极限的关系。'
+        reason: '直接代入得到 0/0 后没有继续变形，或因式分解时符号出错。',
+        advice: '回到教材第 22 页例 3，练习“先分解、再约分”的 0/0 型处理流程。',
+        similar: '求 lim(x→2)(x²−4)/(x²−3x+2)。'
       }
     },
     {
-      id: 'm-q2', type: 'single', stem: '设 f(x) = x²，则 f′(2) 等于？',
-      options: ['2', '4', '8', '0'], answer: 1, score: 10, knowledgeId: 'm-k3',
+      id: 'm-q2', type: 'single', stem: '当 x→0 时，下列变量中是无穷小的是？',
+      options: ['1/x', 'x', 'sin x / x', 'x²+1'], answer: 1, score: 10, knowledgeId: 'm-k5',
       hints: [
-        '导数描述的是瞬时变化率，可以用定义式或求导公式。',
-        'x² 的导数是 2x，把 x = 2 代入即可。',
-        '完整解析：f′(x) = 2x，因此 f′(2) = 4，与用定义式计算的结果一致。'
+        '无穷小是极限为 0 的变量，先分别求四个选项在 x→0 时的极限。',
+        '1/x 趋于无穷大，sin x/x 趋于 1，x²+1 趋于 1。',
+        '完整解析：只有 x 在 x→0 时极限为 0，因此 x 是无穷小。'
       ],
       diagnosis: {
-        reason: '把函数值 f(2) = 4 与导数值混淆，或漏乘系数 2。',
-        advice: '区分“函数值”和“导数值”：前者代入原函数，后者代入导函数。',
-        similar: '用导数定义式计算 f(x) = x² 在 x = 3 处的导数，并与公式法对照。'
+        reason: '把“很小的数”与“无穷小”混淆，或没有逐个计算极限。',
+        advice: '回到教材第 17 页定义 3：无穷小是极限为 0 的变量，必须指明变化过程。',
+        similar: '判断 x→0 时 x sin(1/x)、1/x²、sin x 是否为无穷小。'
       }
     },
     {
-      id: 'm-q3', type: 'single', stem: '不定积分 ∫ 2x dx 的结果是？',
-      options: ['x² + C', '2x² + C', 'x²', '2 + C'], answer: 0, score: 10, knowledgeId: 'm-k5',
+      id: 'm-q3', type: 'single', stem: '极限 lim(x→∞) (x²−x+1)/(2x²+x+2) 的值是？',
+      options: ['1/2', '2', '0', '∞'], answer: 0, score: 10, knowledgeId: 'm-k9',
       hints: [
-        '想一想哪个函数求导之后等于 2x。',
-        'x² 求导得 2x，但不定积分还要补上任意常数。',
-        '完整解析：∫ 2x dx = x² + C，常数 C 不能省略，它代表全体原函数。'
+        '分子分母都是二次多项式，先比较最高次幂。',
+        '分子分母同除以 x²，再让 x→∞。',
+        '完整解析：原式 = lim (1−1/x+1/x²)/(2+1/x+2/x²) = 1/2。'
       ],
       diagnosis: {
-        reason: '漏写积分常数 C，或把系数 2 直接保留在结果中。',
-        advice: '牢记不定积分的结果是一个函数族，必须带 + C。',
-        similar: '求 ∫ 3x² dx，并验证结果求导后是否等于 3x²。'
+        reason: '只比较最高次项系数时看反了分子分母，或忘记同除最高次幂。',
+        advice: '记住结论：分子分母同次时，极限等于最高次项系数之比。',
+        similar: '求 lim(x→∞)(3x²+2x−1)/(x²−5)。'
       }
     },
     {
-      id: 'm-q4', type: 'short', stem: '叙述牛顿-莱布尼茨公式，并说明它为什么被称为微积分基本定理。',
-      options: [], answer: null, score: 20, knowledgeId: 'm-k6',
+      id: 'm-q4', type: 'short', stem: '叙述极限与无穷小的关系（极限基本定理），并说明它为什么能把求极限问题转化为无穷小问题。',
+      options: [], answer: null, score: 20, knowledgeId: 'm-k7',
       hints: [
-        '先写出公式的完整形式，注意积分上下限与原函数的关系。',
-        '公式把定积分转化为原函数在区间端点的差，因此需要先求原函数。',
-        '完整解析：∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 的原函数。它把定积分的计算与求原函数联系起来，揭示了微分与积分互为逆运算。'
+        '先写出 lim f(x)=A 与 f(x)=A+α(x) 的等价关系。',
+        '说明 α(x) 是同一变化过程中的无穷小，即 lim α(x)=0。',
+        '完整解析：lim f(x)=A ⇔ f(x)=A+α(x)，其中 lim α(x)=0。于是只需证明 f(x)−A 为无穷小，简化了 ε-δ 论证。'
       ],
-      reference: '牛顿-莱布尼茨公式为 ∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 在区间上的一个原函数。它把定积分转化为原函数在端点的差，说明微分与积分互为逆运算，因此被称为微积分基本定理。',
-      keywords: ['原函数', 'F(b)', 'F(a)'],
+      reference: '极限基本定理：lim f(x)=A 的充要条件是 f(x)=A+α(x)，其中 α(x) 为同一变化过程中的无穷小（lim α(x)=0）。因此证明极限时只需证明 f(x)−A 为无穷小，把极限问题转化为无穷小分析。',
+      keywords: ['A+α(x)', '无穷小', 'lim α(x)=0'],
       diagnosis: {
-        reason: '只写出公式，没有说明原函数与端点差的关系，也没有指出互逆运算这一核心。',
-        advice: '从“公式形式—计算作用—理论意义”三个层次组织答案。',
-        similar: '用该公式计算 ∫(1→2) 3x² dx，并说明若换成另一个原函数结果是否改变。'
+        reason: '只写出等价式，没有说明 α(x) 是无穷小，也没有说明转化的作用。',
+        advice: '按“等价关系—无穷小条件—论证作用”三层作答。',
+        similar: '用该定理解释为什么 lim(x→2)(2x+1)=5 可以转化为证明 2x−4 为无穷小。'
       }
     }
   ],
   assignments: [
     {
-      id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 重要极限与导数',
-      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-28 09:20', note: '课堂内 10 分钟完成'
+      id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 函数的极限',
+      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
     },
     {
-      id: 'm-a2', mode: 'homework', title: '课后作业 · 不定积分与基本定理',
-      questionIds: ['m-q3', 'm-q4'], publishedAt: '11-28 16:40', note: '11-29 12:30 前提交'
+      id: 'm-a2', mode: 'homework', title: '课后作业 · 极限的运算法则',
+      questionIds: ['m-q3', 'm-q4'], publishedAt: '11-27 16:40', note: '教材 P22—23 例题后可完成'
     }
   ],
+  textbook: {
+    examples: [
+      {
+        id: 'm-exm-1', title: '例 1 · lim(x→∞) 1/x = 0', page: 14, knowledgeId: 'm-k1',
+        stem: '证明 lim(x→∞) 1/x = 0。',
+        solution: '任给 ε>0，要使 |1/x−0|=1/|x|<ε，只需 |x|>1/ε。取 X=1/ε，当 |x|>X 时，|1/x|<ε，故 lim(x→∞)1/x=0。',
+        source: '教材第 14 页'
+      },
+      {
+        id: 'm-exm-2', title: '例 2 · lim(x→x₀) √x = √x₀', page: 15, knowledgeId: 'm-k2',
+        stem: '用极限定义证明 lim(x→x₀) √x = √x₀（x₀>0）。',
+        solution: '任给 ε>0，取 δ=ε√x₀。当 0<|x−x₀|<δ 时，|√x−√x₀|=|x−x₀|/(√x+√x₀)≤|x−x₀|/√x₀<ε。',
+        source: '教材第 15 页'
+      },
+      {
+        id: 'm-exm-3', title: '例 3 · 分段函数的极限', page: 16, knowledgeId: 'm-k3',
+        stem: '设 f(x)={1, x<0; x, x≥0}，求 lim(x→0⁻)f(x)、lim(x→0⁺)f(x) 与 lim(x→0)f(x)。',
+        solution: '左极限 lim(x→0⁻)f(x)=1；右极限 lim(x→0⁺)f(x)=0。左右极限不等，所以 lim(x→0)f(x) 不存在。',
+        source: '教材第 16 页'
+      },
+      {
+        id: 'm-exm-4', title: '例 1 · 多项式极限', page: 21, knowledgeId: 'm-k7',
+        stem: '求 lim(x→2)(x²−3x+4)。',
+        solution: '由四则运算法则，原式 = lim x² −3lim x + lim 4 = 4−6+4=2。',
+        source: '教材第 21 页'
+      },
+      {
+        id: 'm-exm-5', title: '例 2 · 有理式直接代入', page: 21, knowledgeId: 'm-k7',
+        stem: '求 lim(x→1)(x+1)/(2x²−x+2)。',
+        solution: '分母极限 2−1+2=3≠0，直接代入得 (1+1)/3=2/3。',
+        source: '教材第 21 页'
+      },
+      {
+        id: 'm-exm-6', title: '例 3 · 0/0 型因式分解', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→1)(x²+x−2)/(x²−3x+2)。',
+        solution: '分子=(x−1)(x+2)，分母=(x−1)(x−2)，约去 x−1，得 lim(x+2)/(x−2)=−3。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-7', title: '例 4 · 分母趋于 0 的极限', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→0)(x−1)/(x²+x)。',
+        solution: 'x→0 时分母趋于 0，分子趋于 −1≠0，故原极限为 ∞。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-8', title: '例 5 · x→∞ 同除最高次幂', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x²−x+1)/(2x²+x+2)。',
+        solution: '分子分母同除 x²，得 (1−1/x+1/x²)/(2+1/x+2/x²)→1/2。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-9', title: '例 6 · 分母次数更高', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x+3)/(x²−3x+1)。',
+        solution: '分子分母同除 x²，得 (1/x+3/x²)/(1−3/x+1/x²)→0。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-10', title: '例 7 · 分子次数更高', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x²−x+2)/(x²+1)。',
+        solution: '同除 x² 得 (1−1/x+2/x²)/(1+1/x²)→1；结合例 7 的变形可得更高次情形为 ∞。',
+        source: '教材第 22—23 页'
+      },
+      {
+        id: 'm-exm-11', title: '例 8 · 通分处理差式', page: 23, knowledgeId: 'm-k10',
+        stem: '求 lim(x→2)[x²/(x²−4) − 1/(x−2)]。',
+        solution: '通分得 [x²−(x+2)]/[(x−2)(x+2)] = (x−2)(x+1)/[(x−2)(x+2)]，约分后为 (x+1)/(x+2)→3/4。',
+        source: '教材第 23 页'
+      },
+      {
+        id: 'm-exm-12', title: '例 9 · 分子有理化', page: 23, knowledgeId: 'm-k10',
+        stem: '求 lim(x→0)(√(1+x²)−1)/x²。',
+        solution: '分子有理化：[(1+x²)−1]/[x²(√(1+x²)+1)] = 1/(√(1+x²)+1)→1/2。',
+        source: '教材第 23 页'
+      }
+    ],
+    exercises: [
+      {
+        id: 'm-exr-1', title: '习题 1-4 · 无穷小与无穷大', page: 19, knowledgeId: 'm-k5', difficulty: '基础',
+        stem: '讨论 y=x² 在什么变化过程中为无穷小、在什么过程中为无穷大。',
+        reference: '当 x→0 时 y=x²→0，为无穷小；当 x→∞ 时 |x²|→∞，为无穷大。'
+      },
+      {
+        id: 'm-exr-2', title: '习题 1-4 · 证明极限不存在', page: 19, knowledgeId: 'm-k5', difficulty: '提高',
+        stem: '证明极限 lim(x→∞) cos x 不存在。',
+        reference: '取 xₙ=2nπ→+∞，cos xₙ=1；取 yₙ=2nπ+π→+∞，cos yₙ=−1。两个子列极限不同，故原极限不存在。'
+      },
+      {
+        id: 'm-exr-3', title: '习题 1-4 · 用定义证明', page: 19, knowledgeId: 'm-k2', difficulty: '提高',
+        stem: '用极限定义证明 lim(x→2)(2x+1)=5。',
+        reference: '任给 ε>0，取 δ=ε/2。当 0<|x−2|<δ 时，|(2x+1)−5|=2|x−2|<ε。'
+      },
+      {
+        id: 'm-exr-4', title: '习题 1-5 · 分式极限', page: 24, knowledgeId: 'm-k9', difficulty: '基础',
+        stem: '求 lim(x→1)(x²−1)/(2x²−x−1)。',
+        reference: '分子=(x−1)(x+1)，分母=(2x+1)(x−1)，约去 x−1 得 (x+1)/(2x+1)→2/3。'
+      },
+      {
+        id: 'm-exr-5', title: '习题 1-5 · 根式差极限', page: 24, knowledgeId: 'm-k10', difficulty: '提高',
+        stem: '求 lim(x→∞)(√(x²+2x)−√(x²−1))。',
+        reference: '分子有理化得 (2x+1)/(√(x²+2x)+√(x²−1))，分子分母同除 x 后极限为 1。'
+      },
+      {
+        id: 'm-exr-6', title: '习题 1-5 · 差式通分', page: 24, knowledgeId: 'm-k10', difficulty: '提高',
+        stem: '求 lim(x→∞)[x²/(x+1) − x²/(x−1)]。',
+        reference: '通分得 x²[(x−1)−(x+1)]/[(x+1)(x−1)] = −2x²/(x²−1)→−2。'
+      },
+      {
+        id: 'm-exr-7', title: '习题 1-5 · 分段函数极限', page: 24, knowledgeId: 'm-k3', difficulty: '综合',
+        stem: '设 f(x)={2x²−x, −2≤x≤0; x³, 0<x≤1; 3x+2, 1<x≤3}，求 lim(x→0)f(x) 与 lim(x→1)f(x)。',
+        reference: 'x→0：左极限 0、右极限 0，故极限为 0；x→1：左极限 1、右极限 5，左右不等，故 lim(x→1)f(x) 不存在。'
+      },
+      {
+        id: 'm-exr-8', title: '习题 1-5 · 含参数极限', page: 24, knowledgeId: 'm-k9', difficulty: '综合',
+        stem: '讨论 lim(x→∞) aˣ/(1+aˣ)（a>0）的取值。',
+        reference: 'a>1 时分子分母同除 aˣ，极限为 1；a=1 时为 1/2；0<a<1 时 aˣ→0，极限为 0。'
+      }
+    ]
+  },
   shortAnswers: {
-    high: '牛顿-莱布尼茨公式为 ∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 的一个原函数。它把定积分转化为原函数在两端点的差，说明微分与积分互为逆运算，所以被称为微积分基本定理。',
-    mid: '公式是 ∫(a→b) f(x)dx = F(b) − F(a)，F 是原函数，用它可以不用分割求和的方​法算定积分。',
-    low: '就是定积分等于原函数代入上限减下限。'
+    high: '极限基本定理：lim f(x)=A 的充要条件是 f(x)=A+α(x)，其中 α(x) 为同一变化过程中的无穷小，即 lim α(x)=0。证明极限时只需证明 f(x)−A 为无穷小，从而把极限问题转化为无穷小分析，简化了 ε-δ 论证。',
+    mid: 'lim f(x)=A 等价于 f(x)=A+α(x)，其中 α 是无穷小。这样求极限可以转化为证明 f(x)−A 趋于 0。',
+    low: '函数值等于极限值加上一个无穷小。'
   },
   seedMessages: [
     {
       id: 'm-seed-1', authorId: 'p02', authorName: '陈晨', anonymous: true, visibility: 'public',
-      body: '老师，洛必达法则是不是所有极限都能用？我套用后结果和答案不一样。',
+      body: '老师，x→x₀ 的极限为什么和 f(x₀) 有没有定义无关？教材第 15 页的 f₂(x) 在 x=1 处没有定义，但极限还是 2。',
       questionId: 'm-q1',
-      answer: '不是所有极限都能用。洛必达法则只适用于 0/0 或 ∞/∞ 型未定式，而且求导后的极限必须存在或为无穷大。建议你先判断类型，再决定是否使用。',
-      answeredBy: '张老师', createdAt: '11-28 18:30', answeredAt: '11-28 19:02'
+      answer: '极限只关心 x 无限接近 x₀ 时的函数值变化趋势，不要求 x 取到 x₀。所以 f 在 x₀ 处是否有定义不影响极限；只要去心邻域内有定义即可。',
+      answeredBy: '张老师', createdAt: '11-27 18:30', answeredAt: '11-27 19:02'
     }
   ]
 };

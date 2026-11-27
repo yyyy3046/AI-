@@ -68,7 +68,11 @@ function studioView() {
         <div class="divider"></div>
         <div class="gen-steps">${stepsHtml}</div>
         <input type="file" id="ppt-input" accept=".ppt,.pptx" style="display:none">
-        <button class="btn btn-block" style="margin-top:14px" data-act="open-upload">${gen ? '正在处理…' : '选择新的课件文件'}</button>
+        <div class="q-actions" style="margin-top:10px">
+          <button class="btn btn-sm" data-act="teacher-ppt-preview">预览课件</button>
+          <span class="form-hint" style="margin:0">可在下方标注知识点页码</span>
+        </div>
+        <button class="btn btn-block" style="margin-top:10px" data-act="open-upload">${gen ? '正在处理…' : '选择新的课件文件'}</button>
       </div>
     </div>
 
@@ -122,6 +126,34 @@ function studioView() {
     <div class="card-body" style="padding:0">${mindmapView()}</div>
   </div>
 
+  <div class="card" style="margin-top:16px">
+    <div class="card-head">
+      <div>
+        <h2>课件页码标注</h2>
+        <div class="sub">修改后学生端知识导图、课件 PPT 与 AI 回答引用同步更新</div>
+      </div>
+      <div class="tag-row">
+        <button class="btn btn-sm" data-act="teacher-ppt-preview">预览课件</button>
+        <button class="btn btn-sm btn-primary" data-act="save-point-pages">保存页码</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0 18px">
+      <table class="table">
+        <thead><tr><th>知识点</th><th>所属章节</th><th>课件页码</th></tr></thead>
+        <tbody>
+          ${db.mindMap.flatMap(chapter => chapter.sections.flatMap(section => section.points.map(id => ({ chapter, section, point: P(id) }))))
+            .filter(row => row.point)
+            .map(row => `
+              <tr>
+                <td>${esc(row.point.title)}</td>
+                <td>${esc(row.chapter.title)} / ${esc(row.section.title)}</td>
+                <td><input class="input" type="number" min="1" max="${db.courseware.pages}" value="${row.point.page}" data-point-page="${row.point.id}" style="width:90px"></td>
+              </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-head">
       <div>
@@ -131,6 +163,46 @@ function studioView() {
       <span class="badge ai">AI 生成 · 可编辑</span>
     </div>
     <div class="card-body">${questionHtml}</div>
+  </div>
+  ${teacherPptModal(ui.pptPreviewPage)}`;
+}
+
+/** 教师课件预览弹窗：与学生端共用幻灯片渲染 */
+function teacherPptModal(activePage) {
+  if (!activePage) return '';
+  const pages = coursewarePages();
+  if (!pages.length) return '';
+  const total = db.courseware.pages || pages[pages.length - 1].page;
+  const current = pages.find(item => item.page === Number(activePage)) || pages[0];
+  const index = pages.indexOf(current);
+  const prev = pages[index - 1];
+  const next = pages[index + 1];
+
+  return `
+  <div class="modal-mask">
+    <div class="modal teacher-ppt-modal">
+      <div class="drawer-head">
+        <div>
+          <h3>课件预览</h3>
+          <div class="sub">${esc(db.courseware.fileName)} · 第 ${current.page} 页 / 共 ${total} 页 · 仅教师可见</div>
+        </div>
+        <button class="close-btn" data-act="close-teacher-ppt">×</button>
+      </div>
+      <div class="card-body">
+        <div class="ppt-pages" style="flex-direction:row;overflow-x:auto;max-height:none;margin-bottom:12px">
+          ${pages.map(item => `
+            <button class="ppt-page-chip ${item.page === current.page ? 'active' : ''}" data-act="teacher-ppt-page" data-page="${item.page}">
+              <b>${item.page}</b><span>${esc(item.points[0].title)}</span>
+            </button>`).join('')}
+        </div>
+        <div class="ppt-stage">${pptSlideHtml(current, total)}</div>
+        <div class="ppt-nav">
+          <button class="btn btn-sm" data-act="teacher-ppt-page" data-page="${prev ? prev.page : ''}" ${prev ? '' : 'disabled'}>← 上一页</button>
+          <span class="ppt-nav-hint">第 ${current.page} 页 · 已标注 ${index + 1}/${pages.length}</span>
+          <button class="btn btn-sm" data-act="teacher-ppt-page" data-page="${next ? next.page : ''}" ${next ? '' : 'disabled'}>下一页 →</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 

@@ -108,6 +108,56 @@ function render() {
 
 /* ---------------- 事件委托 ---------------- */
 
+/* 思维导图缩放：直接改 DOM，避免 render 重建丢失滚动位置 */
+function applyMindmapZoom(newScale) {
+  ui.mmScale = Math.max(0.4, Math.min(3, Number(newScale) || 1));
+  const scroll = document.querySelector('.mindmap-scroll');
+  if (!scroll) return;
+  const stage = scroll.querySelector('.mm-stage');
+  const canvas = scroll.querySelector('.mindmap-canvas');
+  if (!canvas) return;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.style.transform = `scale(${ui.mmScale})`;
+  if (stage) {
+    stage.style.width = Math.ceil(w * ui.mmScale) + 'px';
+    stage.style.height = Math.ceil(h * ui.mmScale) + 'px';
+  }
+  const label = document.querySelector('.mm-zoom-label');
+  if (label) label.textContent = Math.round(ui.mmScale * 100) + '%';
+}
+
+/* Ctrl/⌘ + 滚轮以指针为中心缩放导图；普通滚轮仍用于滚动 */
+document.addEventListener('wheel', event => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  const scroll = event.target.closest('.mindmap-scroll');
+  if (!scroll) return;
+  const canvas = scroll.querySelector('.mindmap-canvas');
+  if (!canvas) return;
+  event.preventDefault();
+  const rect = scroll.getBoundingClientRect();
+  const stage = scroll.querySelector('.mm-stage');
+  const oldScale = Number(ui.mmScale) || 1;
+  const mx = event.clientX - rect.left + scroll.scrollLeft;
+  const my = event.clientY - rect.top + scroll.scrollTop;
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const newScale = Math.max(0.4, Math.min(3, +(oldScale * factor).toFixed(3)));
+  if (newScale === oldScale) return;
+  ui.mmScale = newScale;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.style.transform = `scale(${newScale})`;
+  if (stage) {
+    stage.style.width = Math.ceil(w * newScale) + 'px';
+    stage.style.height = Math.ceil(h * newScale) + 'px';
+  }
+  const ratio = newScale / oldScale;
+  scroll.scrollLeft = mx * ratio - (event.clientX - rect.left);
+  scroll.scrollTop = my * ratio - (event.clientY - rect.top);
+  const label = document.querySelector('.mm-zoom-label');
+  if (label) label.textContent = Math.round(newScale * 100) + '%';
+}, { passive: false });
+
 document.addEventListener('click', event => {
   const target = event.target.closest('[data-act]');
   if (!target) return;
@@ -204,6 +254,19 @@ document.addEventListener('click', event => {
       ui.editingNode = null;
       render();
       break;
+    case 'mm-zoom': {
+      const dir = target.dataset.dir;
+      let s = Number(ui.mmScale) || 1;
+      if (dir === 'in') s = Math.min(3, +(s * 1.2).toFixed(3));
+      else if (dir === 'out') s = Math.max(0.4, +(s / 1.2).toFixed(3));
+      else s = 1;
+      applyMindmapZoom(s);
+      if (dir === 'reset') {
+        const sc = document.querySelector('.mindmap-scroll');
+        if (sc) { sc.scrollLeft = 0; sc.scrollTop = 0; }
+      }
+      break;
+    }
     case 'edit-mm-node':
       ui.editingNode = { type: target.dataset.type, id: target.dataset.id };
       render();
@@ -358,8 +421,26 @@ document.addEventListener('click', event => {
     case 'ppt-page':
       gotoPptPage(target.dataset.page);
       break;
+    case 'ai-section':
+      setAiSection(target.dataset.id);
+      break;
+    case 'ai-chapter':
+      setAiChapter(target.dataset.id);
+      break;
     case 'open-courseware':
       openCoursewareAt(target.dataset.page);
+      break;
+    case 'teacher-ppt-preview':
+      openTeacherPpt();
+      break;
+    case 'teacher-ppt-page':
+      gotoTeacherPptPage(target.dataset.page);
+      break;
+    case 'close-teacher-ppt':
+      closeTeacherPpt();
+      break;
+    case 'save-point-pages':
+      savePointPages();
       break;
     case 'qa-tab':
       ui.qaTab = target.dataset.tab;
@@ -534,6 +615,10 @@ document.addEventListener('keydown', event => {
 
 /* 课件文件选择 */
 document.addEventListener('change', event => {
+  if (event.target.id === 'ai-page-select') {
+    setAiPage(event.target.value);
+    return;
+  }
   if (event.target.id === 'ppt-input') {
     const file = event.target.files && event.target.files[0];
     if (!file) return;

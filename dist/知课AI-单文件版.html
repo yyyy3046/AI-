@@ -426,9 +426,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   padding: 12px 16px; border-bottom: 1px solid var(--border);
 }
 .mm-hint { font-size: 11.5px; color: var(--text-3); margin-left: auto; }
-.mindmap-scroll { overflow: auto; max-height: 640px; padding: 4px 16px 20px; }
-.mindmap-canvas { position: relative; margin: 14px auto 0; }
+.mindmap-scroll { display: flex; align-items: flex-start; overflow: auto; max-height: 640px; padding: 4px 16px 20px; }
+.mm-stage { position: relative; margin: 14px auto 0; flex: 0 0 auto; }
+.mindmap-canvas { position: relative; margin: 0; transform-origin: 0 0; }
 .mm-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
+.mm-zoom { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.mm-zoom-btn { width: 26px; height: 26px; border: none; background: transparent; cursor: pointer; border-radius: 6px; font-size: 15px; line-height: 1; color: var(--text-2); display: inline-grid; place-items: center; }
+.mm-zoom-btn:hover { background: var(--surface-2); color: var(--text); }
+.mm-zoom-label { min-width: 42px; text-align: center; font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .mm-lines path { fill: none; stroke: #C9D3E6; stroke-width: 1.4; }
 .mm-lines circle { fill: #C9D3E6; }
 .tree-node {
@@ -615,6 +620,22 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .ppt-page-chip { min-width: 150px; }
   .ppt-slide { aspect-ratio: auto; min-height: 300px; }
 }
+
+/* AI 问答关联课件 */
+.ai-context {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); margin-bottom: 16px; flex-wrap: wrap;
+}
+.ai-context-main { display: flex; align-items: center; gap: 10px; }
+.ai-context-main b { font-size: 14px; }
+.ai-context-main span { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.ai-context-select { max-width: 300px; }
+.ai-context-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex: 1; min-width: 280px; }
+.ai-chapter-row, .ai-section-tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ai-context-controls .chip-btn.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.ai-context-controls .ai-context-select { width: 100%; max-width: 100%; }
+.teacher-ppt-modal { width: 860px; }
 .modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ============ 表单 ============ */
@@ -846,9 +867,18 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   cursor: pointer; font-family: inherit;
 }
 .cite-chip:hover { background: var(--brand); color: #fff; }
+.cite-source {
+  margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--brand);
+  background: var(--surface-2); border-radius: 0 8px 8px 0;
+}
+.cite-source b { display: block; font-size: 12px; color: var(--brand); margin-bottom: 2px; }
+.cite-source span { display: block; font-size: 11.5px; color: var(--text-3); margin-bottom: 6px; }
+.cite-source p { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-2); }
 @media (max-width: 640px) {
   .chat-msg { max-width: 100%; }
   .chat-body { max-height: none; }
+  .ai-context-controls { align-items: flex-start; }
+  .ai-chapter-row, .ai-section-tabs { justify-content: flex-start; }
 }
 
 /* ============ 看板 ============ */
@@ -1428,6 +1458,7 @@ button.practice-item:hover { border-color: #B9C8FF; }
 /* ===== js/data-math.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
+/* 高等数学：内容按用户提供的教材扫描件（第一章 第13—24页）整理 */
 window.SUBJECTS.math = {
   id: 'math',
   course: {
@@ -1435,189 +1466,345 @@ window.SUBJECTS.math = {
     className: '人工智能 2401 班', studentCount: 24
   },
   courseware: {
-    fileName: '高等数学·极限与积分.pptx', size: '3.8 MB', pages: 42,
-    uploadedAt: '11-28 09:05', status: 'done'
+    fileName: '高等数学·第一章 第四、五节（P13-24）.pdf', size: '5.7 MB', pages: 24,
+    uploadedAt: '11-27 20:40', status: 'done'
   },
   mindMap: [
     {
-      id: 'm-c1', title: '极限与连续', meta: '第 1—2 章',
+      id: 'm-c1', title: '第一章 函数、极限与连续', meta: '第四、五节 · 教材 P13—24',
       sections: [
-        { id: 'm-s1', title: '极限的概念', points: ['m-k1'] },
-        { id: 'm-s2', title: '两个重要极限', points: ['m-k2'] }
-      ]
-    },
-    {
-      id: 'm-c2', title: '一元函数微分学', meta: '第 3—4 章',
-      sections: [
-        { id: 'm-s3', title: '导数与微分', points: ['m-k3'] },
-        { id: 'm-s4', title: '洛必达法则', points: ['m-k4'] }
-      ]
-    },
-    {
-      id: 'm-c3', title: '一元函数积分学', meta: '第 5—6 章',
-      sections: [
-        { id: 'm-s5', title: '不定积分', points: ['m-k5'] },
-        { id: 'm-s6', title: '定积分', points: ['m-k6'] }
+        { id: 'm-s1', title: '第四节 函数的极限', points: ['m-k1', 'm-k2', 'm-k3', 'm-k4', 'm-k5'] },
+        { id: 'm-s2', title: '第五节 极限的运算法则', points: ['m-k6', 'm-k7', 'm-k8', 'm-k9', 'm-k10'] }
       ]
     }
   ],
   points: [
     {
-      id: 'm-k1', chapterId: 'm-c1', sectionId: 'm-s1', title: '数列极限的 ε-N 定义',
-      summary: '当项数 n 足够大时，数列项与常数 A 的距离可以任意小，就称 A 是该数列的极限。',
-      formulas: ['∀ε > 0, ∃N, 当 n > N 时,  |aₙ − A| < ε'],
+      id: 'm-k1', chapterId: 'm-c1', sectionId: 'm-s1', title: 'x→∞ 时函数的极限',
+      summary: '当 |x| 无限增大时，函数值与常数 A 的距离可以任意小，就称 A 是 x→∞ 时 f(x) 的极限。',
+      formulas: ['∀ε>0，∃X>0，当 |x|>X 时，|f(x)−A|<ε', 'lim(x→∞) f(x)=A ⇔ lim(x→+∞) f(x)=lim(x→−∞) f(x)=A'],
       params: [
-        { sym: 'ε', name: '任意小的正数', desc: '用来刻画“任意接近”的程度，可以取任意小' },
-        { sym: 'N', name: '项数下标', desc: '与 ε 有关，保证 N 之后的项都满足不等式' },
-        { sym: 'A', name: '极限值', desc: '数列最终趋近的常数' }
+        { sym: 'ε', name: '任意小的正数', desc: '刻画函数值与 A 的接近程度' },
+        { sym: 'X', name: '正数阈值', desc: '与 ε 有关，保证 |x|>X 后不等式成立' },
+        { sym: 'A', name: '极限值', desc: 'x 无限增大时函数趋近的常数' }
       ],
-      example: '数列 aₙ = 1/n 的极限为 0：取 ε = 0.01，只要 n > 100，就有 |1/n| < 0.01。',
-      page: 8,
-      excerpt: '极限的 ε-N 定义把“无限接近”精确化为不等式语言，是连续性、导数与积分概念的共同基础。'
-    },
-    {
-      id: 'm-k2', chapterId: 'm-c1', sectionId: 'm-s2', title: '两个重要极限',
-      summary: '两个在极限计算中反复出现的基本结果，分别处理含三角函数的 0/0 型与幂指型极限。',
-      formulas: ['lim(x→0) sin x / x = 1', 'lim(x→∞) (1 + 1/x)ˣ = e'],
-      params: [
-        { sym: 'x', name: '自变量', desc: '第一个极限中 x 趋于 0，第二个中 x 趋于无穷' },
-        { sym: 'e', name: '自然常数', desc: '约等于 2.71828，是自然对数函数的底数' }
-      ],
-      example: '计算 lim(x→0) sin3x / x：变形为 3 · sin3x/(3x)，由重要极限得结果为 3。',
+      example: '教材第 14 页 例 1：证明 lim(x→∞) 1/x = 0。任给 ε>0，取 X=1/ε，当 |x|>X 时，|1/x−0|<ε。',
       page: 14,
-      excerpt: '第一个重要极限常用于含 sin、tan 的 0/0 型极限，第二个重要极限是自然指数 e 的定义来源。'
+      excerpt: '教材第 13—14 页：定义 1 给出 x→∞ 时极限的 ε-X 定义，图 1.12 是几何解释；性质 1 说明双侧极限等于左右两侧极限且相等。'
     },
     {
-      id: 'm-k3', chapterId: 'm-c2', sectionId: 'm-s3', title: '导数的定义',
-      summary: '函数在某点的导数，就是自变量增量趋于 0 时平均变化率的极限，几何上表示切线斜率。',
-      formulas: ["f′(x₀) = lim(Δx→0) [f(x₀ + Δx) − f(x₀)] / Δx"],
+      id: 'm-k2', chapterId: 'm-c1', sectionId: 'm-s1', title: 'x→x₀ 时函数的极限',
+      summary: '当 x 无限接近 x₀（但不等于 x₀）时，f(x) 无限接近 A，就称 A 是 x→x₀ 时的极限；与 f 在 x₀ 是否有定义无关。',
+      formulas: ['∀ε>0，∃δ>0，当 0<|x−x₀|<δ 时，|f(x)−A|<ε', 'lim(x→x₀) f(x)=A'],
       params: [
-        { sym: 'Δx', name: '自变量增量', desc: '趋于 0 的微小变化量' },
-        { sym: 'f′(x₀)', name: '该点的导数', desc: '函数在该点的瞬时变化率，也就是切线斜率' }
+        { sym: 'δ', name: '去心邻域半径', desc: '与 ε 有关，控制 x 与 x₀ 的距离' },
+        { sym: '0<|x−x₀|', name: '去心条件', desc: 'x 可以无限接近 x₀，但取不到 x₀' },
+        { sym: 'A', name: '极限值', desc: 'x 趋近 x₀ 时函数趋近的常数' }
       ],
-      example: 'f(x) = x² 在 x = 2 处：f′(2) = lim[(2+Δx)² − 4]/Δx = lim(4 + Δx) = 4。',
+      example: '教材第 15 页 例 2：用定义证明 lim(x→x₀) √x = √x₀（x₀>0）。取 δ=ε√x₀，当 0<|x−x₀|<δ 时即可证得。',
+      page: 15,
+      excerpt: '教材第 15 页：定义 2 与图 1.14 的几何解释。f₁(x)=x+1 与 f₂(x)=(x²−1)/(x−1) 在 x→1 时都趋于 2，说明极限与 x₀ 处是否有定义无关。'
+    },
+    {
+      id: 'm-k3', chapterId: 'm-c1', sectionId: 'm-s1', title: '左极限与右极限',
+      summary: '从 x₀ 左侧或右侧趋近得到的极限称为单侧极限；双侧极限存在的充要条件是左右极限都存在且相等。',
+      formulas: ['lim(x→x₀⁻) f(x)=A（左极限）', 'lim(x→x₀⁺) f(x)=A（右极限）', 'lim(x→x₀) f(x)=A ⇔ lim(x→x₀⁻) f(x)=lim(x→x₀⁺) f(x)=A'],
+      params: [
+        { sym: 'x→x₀⁻', name: '左侧趋近', desc: 'x 从小于 x₀ 的一侧趋近 x₀' },
+        { sym: 'x→x₀⁺', name: '右侧趋近', desc: 'x 从大于 x₀ 的一侧趋近 x₀' }
+      ],
+      example: '教材第 16 页 例 3：f(x)={1, x<0; x, x≥0}。左极限为 1，右极限为 0，二者不等，所以 lim(x→0) f(x) 不存在。',
+      page: 16,
+      excerpt: '教材第 16 页：单侧极限记号与性质 2。考察分段函数在分界点处的极限时，通常先分别求左右极限。'
+    },
+    {
+      id: 'm-k4', chapterId: 'm-c1', sectionId: 'm-s1', title: '函数极限的基本性质',
+      summary: '极限若存在则唯一；函数在极限点附近局部有界；极限值大于 0（或小于 0）时，函数在去心邻域内保持同号。',
+      formulas: ['若 lim f(x) 存在，则极限唯一', '若 lim f(x)=A，则 f 在 x₀ 的某去心邻域内有界', '若 lim f(x)=A 且 A>0（或 A<0），则邻域内 f(x)>0（或 f(x)<0）'],
+      params: [
+        { sym: '唯一性', name: '极限唯一', desc: '一个函数在同一过程中不可能有两个不同的极限' },
+        { sym: '局部有界', name: '邻域内有界', desc: '只保证在极限点附近有界，不保证在整个定义域有界' },
+        { sym: '局部保号', name: '邻域内保号', desc: '由 f(x)>0 只能推出 A≥0，不能推出 A>0' }
+      ],
+      example: '教材第 17 页 性质 3—5：用于判断函数在极限点附近的符号与有界性，是证明不等式和判断方程根的基础。',
+      page: 17,
+      excerpt: '教材第 17 页：性质 3 唯一性、性质 4 局部有界性、性质 5 局部保号性。注意保号性只能单向使用。'
+    },
+    {
+      id: 'm-k5', chapterId: 'm-c1', sectionId: 'm-s1', title: '无穷小与无穷大',
+      summary: '极限为 0 的变量称为无穷小；绝对值无限增大的变量称为无穷大。无穷大的倒数是无穷小，非零无穷小的倒数是无穷大。',
+      formulas: ['lim f(x)=0 ⇔ f(x) 为无穷小', 'lim f(x)=∞ ⇔ |f(x)| 无限增大', 'f 为无穷大且 f≠0 ⇒ 1/f 为无穷小', 'f 为无穷小且 f≠0 ⇒ 1/f 为无穷大'],
+      params: [
+        { sym: '无穷小', name: '极限为 0', desc: '是一个变量，不是很小的常数' },
+        { sym: '无穷大', name: '绝对值无限增大', desc: '表示极限不存在的一种趋势，不是数' },
+        { sym: '同一过程', name: '变化过程', desc: '讨论无穷小、无穷大必须指明 x→x₀ 或 x→∞' }
+      ],
+      example: '教材第 18 页：x→0 时 x 为无穷小，1/x 为无穷大；x→∞ 时 1/x、1/x² 为无穷小。',
+      page: 18,
+      excerpt: '教材第 17—18 页：定义 3、定义 4、定义 5 与性质 6。无穷大与无界变量是两个不同概念。'
+    },
+    {
+      id: 'm-k6', chapterId: 'm-c1', sectionId: 'm-s2', title: '无穷小的运算性质',
+      summary: '有限个无穷小之和仍为无穷小；有界函数与无穷小之积仍为无穷小；常数与无穷小之积、有限个无穷小之积仍为无穷小。',
+      formulas: ['lim α=0，lim β=0 ⇒ lim(α+β)=0', '|g(x)|≤M 且 lim α(x)=0 ⇒ lim g(x)α(x)=0', 'lim Cα(x)=0（C 为常数）', '有限个无穷小之积仍为无穷小'],
+      params: [
+        { sym: 'α, β', name: '无穷小', desc: '指同一变化过程中极限为 0 的变量' },
+        { sym: 'M', name: '有界函数的界', desc: '只要 g(x) 在邻域内有界即可' }
+      ],
+      example: '教材第 20 页：x→0 时 x 为无穷小，sin x 有界，所以 x sin x、x·sin(1/x) 都是无穷小。',
+      page: 20,
+      excerpt: '教材第 19—20 页：性质 1 及推论 1、推论 2。无穷大没有类似的运算法则，两个无穷大之和未必是无穷大。'
+    },
+    {
+      id: 'm-k7', chapterId: 'm-c1', sectionId: 'm-s2', title: '极限的四则运算法则',
+      summary: '若两个函数的极限都存在，则和、差、积的极限等于极限的和、差、积；分母极限不为 0 时，商的极限等于极限之商。',
+      formulas: ['lim[f(x)±g(x)]=lim f(x) ± lim g(x)', 'lim[f(x)·g(x)]=lim f(x) · lim g(x)', 'lim f(x)/g(x)=lim f(x)/lim g(x)（lim g(x)≠0）', 'lim[Cf(x)]=C·lim f(x)，lim[f(x)]ᵏ=[lim f(x)]ᵏ'],
+      params: [
+        { sym: '前提', name: '极限都存在', desc: '参与运算的两个极限都必须存在' },
+        { sym: '分母', name: '极限不为 0', desc: '商的法则要求分母的极限不等于 0' }
+      ],
+      example: '教材第 21 页 例 1：lim(x→2)(x²−3x+4)=2²−3×2+4=2。',
       page: 21,
-      excerpt: '导数是平均变化率的极限，因此它既能描述瞬时速度，也能描述曲线在某点的切线斜率。'
+      excerpt: '教材第 20—21 页：定理 1 及推论 3、推论 4；法则对 x→∞ 与单侧极限同样适用。'
     },
     {
-      id: 'm-k4', chapterId: 'm-c2', sectionId: 'm-s4', title: '洛必达法则',
-      summary: '当极限为 0/0 或 ∞/∞ 型时，可以用分子分母分别求导后的极限来代替原极限。',
-      formulas: ["lim f(x)/g(x) = lim f′(x)/g′(x)   （0/0 或 ∞/∞ 型）"],
+      id: 'm-k8', chapterId: 'm-c1', sectionId: 'm-s2', title: '复合函数的极限',
+      summary: '内层函数的极限为 u₀，外层函数在 u₀ 处极限为 A，且内层函数在去心邻域内不等于 u₀，则复合函数的极限为 A。',
+      formulas: ['lim(x→x₀) φ(x)=u₀', 'lim(u→u₀) f(u)=A', 'φ(x)≠u₀ ⇒ lim(x→x₀) f(φ(x))=A'],
       params: [
-        { sym: 'f′, g′', name: '分子分母的导数', desc: '必须分别求导，不能对整个分式求导' },
-        { sym: '0/0, ∞/∞', name: '未定式类型', desc: '只有满足这两种类型才能直接使用法则' }
+        { sym: 'φ(x)', name: '内层函数', desc: '其极限 u₀ 是外层函数的自变量趋近点' },
+        { sym: 'f(u)', name: '外层函数', desc: '在 u₀ 处的极限必须存在' },
+        { sym: 'φ(x)≠u₀', name: '去心条件', desc: '保证外层函数确实是在 u₀ 的极限过程中取值' }
       ],
-      example: 'lim(x→0) sin x / x 属于 0/0 型，用洛必达法则得 lim cos x / 1 = 1。',
-      page: 26,
-      excerpt: '使用洛必达法则前必须验证未定式类型，且求导后极限存在或为无穷大，否则法则失效。'
+      example: '教材第 21 页 定理 2：例如 lim(x→0) √(1+x)=1，可看作内层 1+x→1、外层 √u 在 u=1 处连续。',
+      page: 21,
+      excerpt: '教材第 21 页：定理 2 及使用条件，特别要求 φ(x) 在 x₀ 的去心邻域内不等于 u₀。'
     },
     {
-      id: 'm-k5', chapterId: 'm-c3', sectionId: 'm-s5', title: '不定积分',
-      summary: '求一个函数的全体原函数，结果要带上任意常数 C，因为常数求导后为 0。',
-      formulas: ['∫ f(x) dx = F(x) + C,  其中 F′(x) = f(x)'],
+      id: 'm-k9', chapterId: 'm-c1', sectionId: 'm-s2', title: '有理式极限：因式分解与同除最高次幂',
+      summary: '0/0 型先因式分解约去零因子；x→∞ 型将分子分母同除以最高次幂；再按分子分母次数比较得出结果。',
+      formulas: ['0/0 型：约去公因子后求极限', 'x→∞ 型：分子分母同除最高次幂', 'n=m 时极限为 aₙ/bₘ；n<m 时为 0；n>m 时为 ∞'],
       params: [
-        { sym: 'F(x)', name: '原函数', desc: '求导后等于被积函数 f(x) 的函数' },
-        { sym: 'C', name: '任意常数', desc: '表示原函数有无穷多个，不能省略' }
+        { sym: 'n, m', name: '分子分母次数', desc: '比较最高次幂判断 x→∞ 时的极限类型' },
+        { sym: '零因子', name: '导致 0/0 的因式', desc: '因式分解后约去，避免直接代入' }
       ],
-      example: '∫ 2x dx = x² + C，因为 (x² + C)′ = 2x。',
-      page: 33,
-      excerpt: '不定积分与求导互为逆运算，基本积分表可由基本求导公式反推得到。'
+      example: '教材第 22 页 例 3：lim(x→1)(x²+x−2)/(x²−3x+2)=lim(x→1)(x+2)/(x−2)=−3；例 5：lim(x→∞)(x²−x+1)/(2x²+x+2)=1/2。',
+      page: 22,
+      excerpt: '教材第 22—23 页：例 3—例 7，分别演示因式分解、同除最高次幂与次数比较法则。'
     },
     {
-      id: 'm-k6', chapterId: 'm-c3', sectionId: 'm-s6', title: '牛顿-莱布尼茨公式',
-      summary: '把定积分的计算转化为求原函数在两端点的函数值之差，是微积分的基本定理。',
-      formulas: ['∫(a→b) f(x) dx = F(b) − F(a)'],
+      id: 'm-k10', chapterId: 'm-c1', sectionId: 'm-s2', title: '根式与差式极限的变形',
+      summary: '含根号或两个无穷小之差时，先有理化或通分变形，再求极限。',
+      formulas: ['√A−√B = (A−B)/(√A+√B)', '例 8：lim(x→2)[x²/(x²−4) − 1/(x−2)] = 3/4', '例 9：lim(x→0)(√(1+x²)−1)/x² = 1/2'],
       params: [
-        { sym: 'a, b', name: '积分下限与上限', desc: '定积分的积分区间端点' },
-        { sym: 'F', name: 'f 的一个原函数', desc: '只需取任意一个原函数，常数 C 会相互抵消' }
+        { sym: '有理化', name: '分子或分母有理化', desc: '乘以共轭表达式消去根号差' },
+        { sym: '通分', name: '合并分式', desc: '把差式化为一个分式后再约分' }
       ],
-      example: '∫(0→1) 2x dx = [x²](0→1) = 1² − 0² = 1。',
-      page: 38,
-      excerpt: '该公式揭示了微分与积分之间的互逆关系，使定积分不必再用分割求和的方式计算。'
+      example: '教材第 23 页 例 9：lim(x→0)(√(1+x²)−1)/x²，分子有理化后约去 x²，得 1/2。',
+      page: 23,
+      excerpt: '教材第 23 页：例 8（通分）、例 9（分子有理化）。这类变形是处理根式与差式极限的常用方法。'
     }
   ],
   questions: [
     {
-      id: 'm-q1', type: 'single', stem: '极限 lim(x→0) sin x / x 的值是？',
-      options: ['0', '1', '∞', '不存在'], answer: 1, score: 10, knowledgeId: 'm-k2',
+      id: 'm-q1', type: 'single', stem: '极限 lim(x→1) (x²+x−2)/(x²−3x+2) 的值是？',
+      options: ['−3', '3', '0', '不存在'], answer: 0, score: 10, knowledgeId: 'm-k9',
       hints: [
-        '这是课件里的第一个重要极限，先判断它属于什么类型的未定式。',
-        '分子分母同时趋于 0，属于 0/0 型，可以直接套用重要极限的结果。',
-        '完整解析：lim(x→0) sin x / x = 1，这是第一个重要极限，也是推导 sin x 导数的基础。'
+        '先代入 x=1，看看分子分母是否同时为 0。',
+        '分子 x²+x−2=(x−1)(x+2)，分母 x²−3x+2=(x−1)(x−2)，约去公因子 x−1。',
+        '完整解析：原式 = lim(x→1)(x+2)/(x−2) = 3/(−1) = −3。'
       ],
       diagnosis: {
-        reason: '把 0/0 型未定式直接代入得 0，忽略了极限存在且等于 1 这一重要结论。',
-        advice: '回到课件第 14 页，重新记忆两个重要极限的形式与适用条件。',
-        similar: '计算 lim(x→0) tan x / x，并说明它与第一个重要极限的关系。'
+        reason: '直接代入得到 0/0 后没有继续变形，或因式分解时符号出错。',
+        advice: '回到教材第 22 页例 3，练习“先分解、再约分”的 0/0 型处理流程。',
+        similar: '求 lim(x→2)(x²−4)/(x²−3x+2)。'
       }
     },
     {
-      id: 'm-q2', type: 'single', stem: '设 f(x) = x²，则 f′(2) 等于？',
-      options: ['2', '4', '8', '0'], answer: 1, score: 10, knowledgeId: 'm-k3',
+      id: 'm-q2', type: 'single', stem: '当 x→0 时，下列变量中是无穷小的是？',
+      options: ['1/x', 'x', 'sin x / x', 'x²+1'], answer: 1, score: 10, knowledgeId: 'm-k5',
       hints: [
-        '导数描述的是瞬时变化率，可以用定义式或求导公式。',
-        'x² 的导数是 2x，把 x = 2 代入即可。',
-        '完整解析：f′(x) = 2x，因此 f′(2) = 4，与用定义式计算的结果一致。'
+        '无穷小是极限为 0 的变量，先分别求四个选项在 x→0 时的极限。',
+        '1/x 趋于无穷大，sin x/x 趋于 1，x²+1 趋于 1。',
+        '完整解析：只有 x 在 x→0 时极限为 0，因此 x 是无穷小。'
       ],
       diagnosis: {
-        reason: '把函数值 f(2) = 4 与导数值混淆，或漏乘系数 2。',
-        advice: '区分“函数值”和“导数值”：前者代入原函数，后者代入导函数。',
-        similar: '用导数定义式计算 f(x) = x² 在 x = 3 处的导数，并与公式法对照。'
+        reason: '把“很小的数”与“无穷小”混淆，或没有逐个计算极限。',
+        advice: '回到教材第 17 页定义 3：无穷小是极限为 0 的变量，必须指明变化过程。',
+        similar: '判断 x→0 时 x sin(1/x)、1/x²、sin x 是否为无穷小。'
       }
     },
     {
-      id: 'm-q3', type: 'single', stem: '不定积分 ∫ 2x dx 的结果是？',
-      options: ['x² + C', '2x² + C', 'x²', '2 + C'], answer: 0, score: 10, knowledgeId: 'm-k5',
+      id: 'm-q3', type: 'single', stem: '极限 lim(x→∞) (x²−x+1)/(2x²+x+2) 的值是？',
+      options: ['1/2', '2', '0', '∞'], answer: 0, score: 10, knowledgeId: 'm-k9',
       hints: [
-        '想一想哪个函数求导之后等于 2x。',
-        'x² 求导得 2x，但不定积分还要补上任意常数。',
-        '完整解析：∫ 2x dx = x² + C，常数 C 不能省略，它代表全体原函数。'
+        '分子分母都是二次多项式，先比较最高次幂。',
+        '分子分母同除以 x²，再让 x→∞。',
+        '完整解析：原式 = lim (1−1/x+1/x²)/(2+1/x+2/x²) = 1/2。'
       ],
       diagnosis: {
-        reason: '漏写积分常数 C，或把系数 2 直接保留在结果中。',
-        advice: '牢记不定积分的结果是一个函数族，必须带 + C。',
-        similar: '求 ∫ 3x² dx，并验证结果求导后是否等于 3x²。'
+        reason: '只比较最高次项系数时看反了分子分母，或忘记同除最高次幂。',
+        advice: '记住结论：分子分母同次时，极限等于最高次项系数之比。',
+        similar: '求 lim(x→∞)(3x²+2x−1)/(x²−5)。'
       }
     },
     {
-      id: 'm-q4', type: 'short', stem: '叙述牛顿-莱布尼茨公式，并说明它为什么被称为微积分基本定理。',
-      options: [], answer: null, score: 20, knowledgeId: 'm-k6',
+      id: 'm-q4', type: 'short', stem: '叙述极限与无穷小的关系（极限基本定理），并说明它为什么能把求极限问题转化为无穷小问题。',
+      options: [], answer: null, score: 20, knowledgeId: 'm-k7',
       hints: [
-        '先写出公式的完整形式，注意积分上下限与原函数的关系。',
-        '公式把定积分转化为原函数在区间端点的差，因此需要先求原函数。',
-        '完整解析：∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 的原函数。它把定积分的计算与求原函数联系起来，揭示了微分与积分互为逆运算。'
+        '先写出 lim f(x)=A 与 f(x)=A+α(x) 的等价关系。',
+        '说明 α(x) 是同一变化过程中的无穷小，即 lim α(x)=0。',
+        '完整解析：lim f(x)=A ⇔ f(x)=A+α(x)，其中 lim α(x)=0。于是只需证明 f(x)−A 为无穷小，简化了 ε-δ 论证。'
       ],
-      reference: '牛顿-莱布尼茨公式为 ∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 在区间上的一个原函数。它把定积分转化为原函数在端点的差，说明微分与积分互为逆运算，因此被称为微积分基本定理。',
-      keywords: ['原函数', 'F(b)', 'F(a)'],
+      reference: '极限基本定理：lim f(x)=A 的充要条件是 f(x)=A+α(x)，其中 α(x) 为同一变化过程中的无穷小（lim α(x)=0）。因此证明极限时只需证明 f(x)−A 为无穷小，把极限问题转化为无穷小分析。',
+      keywords: ['A+α(x)', '无穷小', 'lim α(x)=0'],
       diagnosis: {
-        reason: '只写出公式，没有说明原函数与端点差的关系，也没有指出互逆运算这一核心。',
-        advice: '从“公式形式—计算作用—理论意义”三个层次组织答案。',
-        similar: '用该公式计算 ∫(1→2) 3x² dx，并说明若换成另一个原函数结果是否改变。'
+        reason: '只写出等价式，没有说明 α(x) 是无穷小，也没有说明转化的作用。',
+        advice: '按“等价关系—无穷小条件—论证作用”三层作答。',
+        similar: '用该定理解释为什么 lim(x→2)(2x+1)=5 可以转化为证明 2x−4 为无穷小。'
       }
     }
   ],
   assignments: [
     {
-      id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 重要极限与导数',
-      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-28 09:20', note: '课堂内 10 分钟完成'
+      id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 函数的极限',
+      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
     },
     {
-      id: 'm-a2', mode: 'homework', title: '课后作业 · 不定积分与基本定理',
-      questionIds: ['m-q3', 'm-q4'], publishedAt: '11-28 16:40', note: '11-29 12:30 前提交'
+      id: 'm-a2', mode: 'homework', title: '课后作业 · 极限的运算法则',
+      questionIds: ['m-q3', 'm-q4'], publishedAt: '11-27 16:40', note: '教材 P22—23 例题后可完成'
     }
   ],
+  textbook: {
+    examples: [
+      {
+        id: 'm-exm-1', title: '例 1 · lim(x→∞) 1/x = 0', page: 14, knowledgeId: 'm-k1',
+        stem: '证明 lim(x→∞) 1/x = 0。',
+        solution: '任给 ε>0，要使 |1/x−0|=1/|x|<ε，只需 |x|>1/ε。取 X=1/ε，当 |x|>X 时，|1/x|<ε，故 lim(x→∞)1/x=0。',
+        source: '教材第 14 页'
+      },
+      {
+        id: 'm-exm-2', title: '例 2 · lim(x→x₀) √x = √x₀', page: 15, knowledgeId: 'm-k2',
+        stem: '用极限定义证明 lim(x→x₀) √x = √x₀（x₀>0）。',
+        solution: '任给 ε>0，取 δ=ε√x₀。当 0<|x−x₀|<δ 时，|√x−√x₀|=|x−x₀|/(√x+√x₀)≤|x−x₀|/√x₀<ε。',
+        source: '教材第 15 页'
+      },
+      {
+        id: 'm-exm-3', title: '例 3 · 分段函数的极限', page: 16, knowledgeId: 'm-k3',
+        stem: '设 f(x)={1, x<0; x, x≥0}，求 lim(x→0⁻)f(x)、lim(x→0⁺)f(x) 与 lim(x→0)f(x)。',
+        solution: '左极限 lim(x→0⁻)f(x)=1；右极限 lim(x→0⁺)f(x)=0。左右极限不等，所以 lim(x→0)f(x) 不存在。',
+        source: '教材第 16 页'
+      },
+      {
+        id: 'm-exm-4', title: '例 1 · 多项式极限', page: 21, knowledgeId: 'm-k7',
+        stem: '求 lim(x→2)(x²−3x+4)。',
+        solution: '由四则运算法则，原式 = lim x² −3lim x + lim 4 = 4−6+4=2。',
+        source: '教材第 21 页'
+      },
+      {
+        id: 'm-exm-5', title: '例 2 · 有理式直接代入', page: 21, knowledgeId: 'm-k7',
+        stem: '求 lim(x→1)(x+1)/(2x²−x+2)。',
+        solution: '分母极限 2−1+2=3≠0，直接代入得 (1+1)/3=2/3。',
+        source: '教材第 21 页'
+      },
+      {
+        id: 'm-exm-6', title: '例 3 · 0/0 型因式分解', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→1)(x²+x−2)/(x²−3x+2)。',
+        solution: '分子=(x−1)(x+2)，分母=(x−1)(x−2)，约去 x−1，得 lim(x+2)/(x−2)=−3。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-7', title: '例 4 · 分母趋于 0 的极限', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→0)(x−1)/(x²+x)。',
+        solution: 'x→0 时分母趋于 0，分子趋于 −1≠0，故原极限为 ∞。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-8', title: '例 5 · x→∞ 同除最高次幂', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x²−x+1)/(2x²+x+2)。',
+        solution: '分子分母同除 x²，得 (1−1/x+1/x²)/(2+1/x+2/x²)→1/2。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-9', title: '例 6 · 分母次数更高', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x+3)/(x²−3x+1)。',
+        solution: '分子分母同除 x²，得 (1/x+3/x²)/(1−3/x+1/x²)→0。',
+        source: '教材第 22 页'
+      },
+      {
+        id: 'm-exm-10', title: '例 7 · 分子次数更高', page: 22, knowledgeId: 'm-k9',
+        stem: '求 lim(x→∞)(x²−x+2)/(x²+1)。',
+        solution: '同除 x² 得 (1−1/x+2/x²)/(1+1/x²)→1；结合例 7 的变形可得更高次情形为 ∞。',
+        source: '教材第 22—23 页'
+      },
+      {
+        id: 'm-exm-11', title: '例 8 · 通分处理差式', page: 23, knowledgeId: 'm-k10',
+        stem: '求 lim(x→2)[x²/(x²−4) − 1/(x−2)]。',
+        solution: '通分得 [x²−(x+2)]/[(x−2)(x+2)] = (x−2)(x+1)/[(x−2)(x+2)]，约分后为 (x+1)/(x+2)→3/4。',
+        source: '教材第 23 页'
+      },
+      {
+        id: 'm-exm-12', title: '例 9 · 分子有理化', page: 23, knowledgeId: 'm-k10',
+        stem: '求 lim(x→0)(√(1+x²)−1)/x²。',
+        solution: '分子有理化：[(1+x²)−1]/[x²(√(1+x²)+1)] = 1/(√(1+x²)+1)→1/2。',
+        source: '教材第 23 页'
+      }
+    ],
+    exercises: [
+      {
+        id: 'm-exr-1', title: '习题 1-4 · 无穷小与无穷大', page: 19, knowledgeId: 'm-k5', difficulty: '基础',
+        stem: '讨论 y=x² 在什么变化过程中为无穷小、在什么过程中为无穷大。',
+        reference: '当 x→0 时 y=x²→0，为无穷小；当 x→∞ 时 |x²|→∞，为无穷大。'
+      },
+      {
+        id: 'm-exr-2', title: '习题 1-4 · 证明极限不存在', page: 19, knowledgeId: 'm-k5', difficulty: '提高',
+        stem: '证明极限 lim(x→∞) cos x 不存在。',
+        reference: '取 xₙ=2nπ→+∞，cos xₙ=1；取 yₙ=2nπ+π→+∞，cos yₙ=−1。两个子列极限不同，故原极限不存在。'
+      },
+      {
+        id: 'm-exr-3', title: '习题 1-4 · 用定义证明', page: 19, knowledgeId: 'm-k2', difficulty: '提高',
+        stem: '用极限定义证明 lim(x→2)(2x+1)=5。',
+        reference: '任给 ε>0，取 δ=ε/2。当 0<|x−2|<δ 时，|(2x+1)−5|=2|x−2|<ε。'
+      },
+      {
+        id: 'm-exr-4', title: '习题 1-5 · 分式极限', page: 24, knowledgeId: 'm-k9', difficulty: '基础',
+        stem: '求 lim(x→1)(x²−1)/(2x²−x−1)。',
+        reference: '分子=(x−1)(x+1)，分母=(2x+1)(x−1)，约去 x−1 得 (x+1)/(2x+1)→2/3。'
+      },
+      {
+        id: 'm-exr-5', title: '习题 1-5 · 根式差极限', page: 24, knowledgeId: 'm-k10', difficulty: '提高',
+        stem: '求 lim(x→∞)(√(x²+2x)−√(x²−1))。',
+        reference: '分子有理化得 (2x+1)/(√(x²+2x)+√(x²−1))，分子分母同除 x 后极限为 1。'
+      },
+      {
+        id: 'm-exr-6', title: '习题 1-5 · 差式通分', page: 24, knowledgeId: 'm-k10', difficulty: '提高',
+        stem: '求 lim(x→∞)[x²/(x+1) − x²/(x−1)]。',
+        reference: '通分得 x²[(x−1)−(x+1)]/[(x+1)(x−1)] = −2x²/(x²−1)→−2。'
+      },
+      {
+        id: 'm-exr-7', title: '习题 1-5 · 分段函数极限', page: 24, knowledgeId: 'm-k3', difficulty: '综合',
+        stem: '设 f(x)={2x²−x, −2≤x≤0; x³, 0<x≤1; 3x+2, 1<x≤3}，求 lim(x→0)f(x) 与 lim(x→1)f(x)。',
+        reference: 'x→0：左极限 0、右极限 0，故极限为 0；x→1：左极限 1、右极限 5，左右不等，故 lim(x→1)f(x) 不存在。'
+      },
+      {
+        id: 'm-exr-8', title: '习题 1-5 · 含参数极限', page: 24, knowledgeId: 'm-k9', difficulty: '综合',
+        stem: '讨论 lim(x→∞) aˣ/(1+aˣ)（a>0）的取值。',
+        reference: 'a>1 时分子分母同除 aˣ，极限为 1；a=1 时为 1/2；0<a<1 时 aˣ→0，极限为 0。'
+      }
+    ]
+  },
   shortAnswers: {
-    high: '牛顿-莱布尼茨公式为 ∫(a→b) f(x)dx = F(b) − F(a)，其中 F 是 f 的一个原函数。它把定积分转化为原函数在两端点的差，说明微分与积分互为逆运算，所以被称为微积分基本定理。',
-    mid: '公式是 ∫(a→b) f(x)dx = F(b) − F(a)，F 是原函数，用它可以不用分割求和的方​法算定积分。',
-    low: '就是定积分等于原函数代入上限减下限。'
+    high: '极限基本定理：lim f(x)=A 的充要条件是 f(x)=A+α(x)，其中 α(x) 为同一变化过程中的无穷小，即 lim α(x)=0。证明极限时只需证明 f(x)−A 为无穷小，从而把极限问题转化为无穷小分析，简化了 ε-δ 论证。',
+    mid: 'lim f(x)=A 等价于 f(x)=A+α(x)，其中 α 是无穷小。这样求极限可以转化为证明 f(x)−A 趋于 0。',
+    low: '函数值等于极限值加上一个无穷小。'
   },
   seedMessages: [
     {
       id: 'm-seed-1', authorId: 'p02', authorName: '陈晨', anonymous: true, visibility: 'public',
-      body: '老师，洛必达法则是不是所有极限都能用？我套用后结果和答案不一样。',
+      body: '老师，x→x₀ 的极限为什么和 f(x₀) 有没有定义无关？教材第 15 页的 f₂(x) 在 x=1 处没有定义，但极限还是 2。',
       questionId: 'm-q1',
-      answer: '不是所有极限都能用。洛必达法则只适用于 0/0 或 ∞/∞ 型未定式，而且求导后的极限必须存在或为无穷大。建议你先判断类型，再决定是否使用。',
-      answeredBy: '张老师', createdAt: '11-28 18:30', answeredAt: '11-28 19:02'
+      answer: '极限只关心 x 无限接近 x₀ 时的函数值变化趋势，不要求 x 取到 x₀。所以 f 在 x₀ 处是否有定义不影响极限；只要去心邻域内有定义即可。',
+      answeredBy: '张老师', createdAt: '11-27 18:30', answeredAt: '11-27 19:02'
     }
   ]
 };
@@ -1626,6 +1813,7 @@ window.SUBJECTS.math = {
 /* ===== js/data-physics.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
+/* 大学物理：内容按用户提供的教材扫描件（第六章 静电场，教材 P133—173）整理 */
 window.SUBJECTS.physics = {
   id: 'physics',
   course: {
@@ -1633,192 +1821,395 @@ window.SUBJECTS.physics = {
     className: '人工智能 2401 班', studentCount: 24
   },
   courseware: {
-    fileName: '大学物理·力学与波动.pptx', size: '5.1 MB', pages: 44,
-    uploadedAt: '11-28 09:05', status: 'done'
+    fileName: '大学物理·第六章 静电场（P133-173）.pdf', size: '6.2 MB', pages: 173,
+    uploadedAt: '11-27 20:55', status: 'done'
   },
   mindMap: [
     {
-      id: 'p-c1', title: '质点力学', meta: '第 1—2 章',
+      id: 'p-c1', title: '第六章 静电场', meta: '§6-1—§6-5 · 教材 P133—173',
       sections: [
-        { id: 'p-s1', title: '牛顿运动定律', points: ['p-k1'] },
-        { id: 'p-s2', title: '动量守恒', points: ['p-k2'] }
-      ]
-    },
-    {
-      id: 'p-c2', title: '振动与波动', meta: '第 3—4 章',
-      sections: [
-        { id: 'p-s3', title: '简谐振动', points: ['p-k3'] },
-        { id: 'p-s4', title: '机械波', points: ['p-k4'] }
-      ]
-    },
-    {
-      id: 'p-c3', title: '功与能', meta: '第 5 章',
-      sections: [
-        { id: 'p-s5', title: '动能定理', points: ['p-k5'] },
-        { id: 'p-s6', title: '机械能守恒', points: ['p-k6'] }
+        { id: 'p-s1', title: '§6-1 电场强度', points: ['p-k1', 'p-k2', 'p-k3', 'p-k4', 'p-k5'] },
+        { id: 'p-s2', title: '§6-2 高斯定理', points: ['p-k6', 'p-k7', 'p-k8'] },
+        { id: 'p-s3', title: '§6-3 电势', points: ['p-k9', 'p-k10', 'p-k11', 'p-k12'] },
+        { id: 'p-s4', title: '§6-4 静电场中的导体和电介质', points: ['p-k13', 'p-k14'] },
+        { id: 'p-s5', title: '§6-5 电容 电场的能量', points: ['p-k15', 'p-k16'] }
       ]
     }
   ],
   points: [
     {
-      id: 'p-k1', chapterId: 'p-c1', sectionId: 'p-s1', title: '牛顿第二定律',
-      summary: '物体所受合外力等于质量与加速度的乘积，是质点动力学最基本的定量关系。',
-      formulas: ['F合 = m · a'],
+      id: 'p-k1', chapterId: 'p-c1', sectionId: 'p-s1', title: '电荷与电荷守恒定律',
+      summary: '电荷有正负两种，同性相斥、异性相吸；电荷是量子化的，且在孤立系统中电荷的代数和保持不变。',
+      formulas: ['e = 1.602×10⁻¹⁹ C（元电荷）', 'Σq = 常量（电荷守恒）'],
       params: [
-        { sym: 'F合', name: '合外力', desc: '作用在物体上的所有外力的矢量和，单位 N' },
-        { sym: 'm', name: '质量', desc: '物体惯性大小的量度，单位 kg' },
-        { sym: 'a', name: '加速度', desc: '速度的变化率，方向与合外力一致，单位 m/s²' }
+        { sym: 'e', name: '元电荷', desc: '一个电子或质子所带电量的绝对值，所有带电体电量都是 e 的整数倍' },
+        { sym: 'Σq', name: '电荷代数和', desc: '孤立系统内正负电荷电量的代数和，与外界无电荷交换时保持不变' }
       ],
-      example: '质量 2 kg 的物体受到 6 N 的合力，加速度 a = F/m = 3 m/s²。',
-      page: 9,
-      excerpt: '牛顿第二定律是瞬时关系：合外力与加速度同时产生、同时变化、同时消失，方向始终一致。'
+      example: '摩擦起电、感应起电都没有创造或消灭电荷，只是电荷从一个物体转移到另一个物体，总电量不变。',
+      page: 134,
+      excerpt: '教材第 134 页：电荷守恒定律指出，与外界无电荷交换的系统，正负电荷的代数和在任何物理过程中都保持不变。电荷是量子化的，任何带电体所带电量都是元电荷 e=1.602×10⁻¹⁹ C 的整数倍。'
     },
     {
-      id: 'p-k2', chapterId: 'p-c1', sectionId: 'p-s2', title: '动量守恒定律',
-      summary: '系统不受外力或所受合外力为零时，系统的总动量保持不变。',
-      formulas: ['m₁v₁ + m₂v₂ = m₁v₁′ + m₂v₂′'],
+      id: 'p-k2', chapterId: 'p-c1', sectionId: 'p-s1', title: '库仑定律',
+      summary: '真空中两个静止点电荷之间的相互作用力，与电量乘积成正比、与距离平方成反比，方向沿连线。',
+      formulas: ['F₂₁ = (1/4πε₀)·(q₁q₂/r²)·eᵣ', 'k = 1/(4πε₀) ≈ 9.0×10⁹ N·m²/C²'],
       params: [
-        { sym: 'm₁, m₂', name: '两物体质量', desc: '参与相互作用的两物体质量' },
-        { sym: 'v', name: '碰撞前速度', desc: '相互作用之前的瞬时速度' },
-        { sym: 'v′', name: '碰撞后速度', desc: '相互作用之后的瞬时速度' }
+        { sym: 'q₁, q₂', name: '两点电荷电量', desc: '代数量，同号相斥、异号相吸' },
+        { sym: 'r', name: '两点电荷间距', desc: '点电荷模型要求间距远大于电荷本身线度' },
+        { sym: 'ε₀', name: '真空电容率', desc: 'ε₀ ≈ 8.854×10⁻¹² C²/(N·m²)，由 k=1/(4πε₀) 定义' }
       ],
-      example: '两个小球在光滑水平面上碰撞，碰撞前后总动量相等，可用于求碰后速度。',
-      page: 17,
-      excerpt: '动量守恒的适用条件是系统合外力为零或内力远大于外力，例如碰撞、爆炸等过程可近似使用。'
+      example: '两个点电荷电量各为 1.0×10⁻⁶ C，相距 0.10 m，作用力 F = 9.0×10⁹ × 10⁻¹² / 0.01 = 0.90 N。',
+      page: 135,
+      excerpt: '教材第 135 页：真空中两个静止点电荷之间的相互作用力 F₁₂=−F₂₁=k·q₁q₂/r²·eᵣ，其中 k=1/(4πε₀)≈9.0×10⁹ N·m²/C²，ε₀ 称为真空电容率。'
     },
     {
-      id: 'p-k3', chapterId: 'p-c2', sectionId: 'p-s3', title: '简谐振动',
-      summary: '物体在回复力作用下围绕平衡位置做周期性运动，位移随时间按余弦规律变化。',
-      formulas: ['x = A cos(ωt + φ)'],
+      id: 'p-k3', chapterId: 'p-c1', sectionId: 'p-s1', title: '电场与电场强度',
+      summary: '电荷周围存在电场，电荷间的相互作用通过电场传递；电场强度描述电场的强弱与方向。',
+      formulas: ['E = F / q₀', 'F = q E（点电荷受力）'],
       params: [
-        { sym: 'A', name: '振幅', desc: '偏离平衡位置的最大距离' },
-        { sym: 'ω', name: '角频率', desc: '与周期关系为 ω = 2π/T' },
-        { sym: 'φ', name: '初相位', desc: '决定 t = 0 时的位移与运动方向' }
+        { sym: 'E', name: '电场强度', desc: '矢量，单位 N/C（等于 V/m），规定正试探电荷受力方向为 E 的方向' },
+        { sym: 'q₀', name: '试探电荷', desc: '电量和线度都足够小，不影响原电场分布' }
       ],
-      example: '弹簧振子振幅 5 cm、周期 2 s，则 ω = π rad/s，位移可写成 x = 0.05cos(πt + φ)。',
-      page: 23,
-      excerpt: '简谐振动的回复力与位移成正比且方向相反，即 F = −kx，这是它成立的根本原因。'
+      example: '场强为 200 N/C 的匀强电场中，一个 q=+5×10⁻⁹ C 的电荷受到的电场力 F=qE=1.0×10⁻⁶ N，方向与 E 相同。',
+      page: 136,
+      excerpt: '教材第 136 页：电场强度定义为 E=F/q₀，单位为 N/C（也等于 V/m）。正电荷在电场中受力方向与 E 相同，负电荷受力方向与 E 相反。'
     },
     {
-      id: 'p-k4', chapterId: 'p-c2', sectionId: 'p-s4', title: '机械波的波速关系',
-      summary: '波速由介质决定，等于波长与频率的乘积，三者构成波动学最基本的定量关系。',
-      formulas: ['v = λ / T = λ f'],
+      id: 'p-k4', chapterId: 'p-c1', sectionId: 'p-s1', title: '点电荷的场强与场强叠加原理',
+      summary: '点电荷的场强沿径向、与距离平方成反比；多个点电荷的场强等于各自场强的矢量和。',
+      formulas: ['E = (1/4πε₀)·(Q/r²)·eᵣ', 'E = Σ Eᵢ（矢量叠加）'],
       params: [
-        { sym: 'v', name: '波速', desc: '振动状态在介质中传播的速度' },
-        { sym: 'λ', name: '波长', desc: '相邻同相位点之间的距离' },
-        { sym: 'f', name: '频率', desc: '单位时间内完整波的个数，由波源决定' }
+        { sym: 'Q', name: '场源电荷', desc: '产生电场的点电荷，Q>0 时 E 背离电荷，Q<0 时指向电荷' },
+        { sym: 'r', name: '场点到场源距离', desc: 'r→0 时点电荷模型失效，公式不再适用' }
       ],
-      example: '声波在空气中波速约 340 m/s，频率 340 Hz 时波长 λ = 1 m。',
-      page: 29,
-      excerpt: '频率由波源决定，波速由介质决定，因此换介质时频率不变而波长改变。'
+      example: '两个等量异号点电荷在连线中点处，两场强方向相同（都指向负电荷），合场强为单个场强的 2 倍。',
+      page: 137,
+      excerpt: '教材第 137 页：点电荷 Q 在距其 r 处产生的场强为 E=(1/4πε₀)(Q/r²)eᵣ。场强叠加原理指出，点电荷系在某点的场强等于各点电荷单独存在时在该点产生场强的矢量和。'
     },
     {
-      id: 'p-k5', chapterId: 'p-c3', sectionId: 'p-s5', title: '动能定理',
-      summary: '合外力对物体做的功等于物体动能的变化量，把力与运动状态变化联系起来。',
-      formulas: ['W合 = ½mv₂² − ½mv₁²'],
+      id: 'p-k5', chapterId: 'p-c1', sectionId: 'p-s1', title: '连续带电体的场强积分',
+      summary: '把连续带电体分割成无数电荷元，每个电荷元视为点电荷，用积分求总场强（矢量积分要分解到坐标轴）。',
+      formulas: ['dE = (1/4πε₀)·(dq/r²)·eᵣ', 'E = ∫ dE（矢量积分）', 'λ=dq/dl，σ=dq/dS，ρ=dq/dV'],
       params: [
-        { sym: 'W合', name: '合外力做的功', desc: '所有力做功的代数和，单位 J' },
-        { sym: 'v₁, v₂', name: '初末速度', desc: '过程开始与结束时的速率' }
+        { sym: 'dq', name: '电荷元', desc: '从连续带电体上取出的极小带电部分，可视为点电荷' },
+        { sym: 'λ, σ, ρ', name: '线/面/体电荷密度', desc: '单位长度/面积/体积的电量，用于把 dq 写成坐标的微分' }
       ],
-      example: '物体从静止被合力做功 50 J，若质量 4 kg，则末速度满足 50 = ½·4·v₂²，得 v₂ = 5 m/s。',
-      page: 35,
-      excerpt: '动能定理只关心初末状态，无需分析中间过程的细节，因此处理变力做功时特别方便。'
+      example: '教材第 140 页：线电荷密度为 λ 的无限长均匀带电细棒，距棒 a 处场强 E=λ/(2πε₀a)，方向垂直于棒。',
+      page: 137,
+      excerpt: '教材第 137—138 页：计算任意带电体的场强时，把带电体分割成无数电荷元 dq，每个电荷元的场强 dE=(1/4πε₀)(dq/r²)eᵣ，总场强 E=∫dE。线、面、体带电的电荷密度分别为 λ=dq/dl、σ=dq/dS、ρ=dq/dV。'
     },
     {
-      id: 'p-k6', chapterId: 'p-c3', sectionId: 'p-s6', title: '机械能守恒',
-      summary: '只有重力或弹力做功时，系统的动能与势能相互转化，但机械能总量保持不变。',
-      formulas: ['Ek₁ + Ep₁ = Ek₂ + Ep₂'],
+      id: 'p-k6', chapterId: 'p-c1', sectionId: 'p-s2', title: '电场线与电场强度通量',
+      summary: '用电场线形象描述场强分布；电场强度通量是电场线穿过某曲面的条数。',
+      formulas: ['dΦₑ = E·dS = E cosθ dS', 'Φₑ = ∫ₛ E·dS（曲面）', 'Φₑ = ∮ₛ E·dS（闭合曲面）'],
       params: [
-        { sym: 'Ek', name: '动能', desc: '½mv²，与速度大小有关' },
-        { sym: 'Ep', name: '势能', desc: '重力势能 mgh 或弹性势能 ½kx²' }
+        { sym: 'θ', name: 'E 与面元法向夹角', desc: 'θ<90° 通量为正（穿出），θ>90° 为负（穿入）' },
+        { sym: 'dS', name: '面元矢量', desc: '大小为面元面积，方向为法向；闭合曲面取外法线方向' }
       ],
-      example: '小球从 5 m 高处自由下落，不计空气阻力，落地速度 v = √(2gh) ≈ 9.9 m/s。',
-      page: 39,
-      excerpt: '机械能守恒的条件是只有保守力做功，若存在摩擦力等非保守力，机械能会转化为内能。'
+      example: '匀强电场 E 垂直穿过面积为 S 的平面时，Φₑ=ES；若平面与 E 平行，则 Φₑ=0。',
+      page: 143,
+      excerpt: '教材第 143 页：电场线起自正电荷（或无穷远），终于负电荷（或无穷远），不形成闭合曲线，在无电荷处不中断、不相交。通过曲面 S 的电场强度通量 Φₑ=∫ₛ E·dS，闭合曲面的 Φₑ=∮ₛ E·dS。'
+    },
+    {
+      id: 'p-k7', chapterId: 'p-c1', sectionId: 'p-s2', title: '高斯定理',
+      summary: '通过任意闭合曲面的 E 通量，等于面内所围电荷代数和除以 ε₀；它揭示静电场是有源场。',
+      formulas: ['∮ₛ E·dS = (1/ε₀) Σ qᵢ（S 内）'],
+      params: [
+        { sym: 'Σqᵢ', name: '闭合面内电荷代数和', desc: '只计面内电荷，面外电荷对总通量贡献为零' },
+        { sym: 'E', name: '面上的场强', desc: '是面内、外所有电荷共同产生的合场强，并非只由面内电荷产生' }
+      ],
+      example: '点电荷 q 被半径为 r 的球面包围，球面 E=q/(4πε₀r²)，通量 Φₑ=E·4πr²=q/ε₀，与 r 无关。',
+      page: 144,
+      excerpt: '教材第 144 页：高斯定理：通过任意闭合曲面的电场强度通量，等于该曲面所包围的所有电荷的代数和除以 ε₀，即 ∮ₛ E·dS=(1/ε₀)Σqᵢ。它表明静电场是有源场。'
+    },
+    {
+      id: 'p-k8', chapterId: 'p-c1', sectionId: 'p-s2', title: '用高斯定理计算场强',
+      summary: '当电荷分布具有球、轴或面对称时，选合适的高斯面可把 E 提出积分号，从而简便求场强。',
+      formulas: ['均匀带电球壳：r>R 时 E=q/(4πε₀r²)，r<R 时 E=0', '无限大均匀带电平面：E=σ/(2ε₀)'],
+      params: [
+        { sym: '高斯面', name: '选取的闭合面', desc: '要求面上各点 E 大小相等、方向与面元法向平行或垂直' },
+        { sym: '对称性', name: '前提条件', desc: '电荷分布须具有球/轴/面对称，否则 E 不能从积分号提出' }
+      ],
+      example: '教材第 147 页：无限大均匀带电平面两侧为匀强电场，E=σ/(2ε₀)；两等量异号平行板之间 E=σ/ε₀，板外 E=0。',
+      page: 146,
+      excerpt: '教材第 146 页：当电荷分布具有球对称、轴对称或面对称时，可选适当的高斯面，使面上 E 大小处处相等且方向与面元法向平行（或垂直），从而用高斯定理简便地求出场强。'
+    },
+    {
+      id: 'p-k9', chapterId: 'p-c1', sectionId: 'p-s3', title: '静电场环路定理与电势能',
+      summary: '静电场力做功与路径无关，静电场是保守场；由此可引入电势能和电势。',
+      formulas: ['∮ₗ E·dl = 0（环路定理）', 'Eₚₐ − Eₚᵦ = Wₐᵦ = q₀ ∫ₐᵇ E·dl'],
+      params: [
+        { sym: '保守场', name: '做功与路径无关', desc: '沿任意闭合回路移动电荷，电场力做功为零' },
+        { sym: 'Eₚ', name: '电势能', desc: '属于电荷与电场组成的系统，只有两点间的差值有绝对意义' }
+      ],
+      example: '在匀强电场 E 中沿电场方向移动电荷 q 通过距离 d，电场力做功 W=qEd，电势能减少 qEd。',
+      page: 149,
+      excerpt: '教材第 149—150 页：静电场的环路定理 ∮ₗ E·dl=0，说明静电场是保守场、电场力做功与路径无关。由此引入电势能：Eₚₐ−Eₚᵦ=Wₐᵦ=q₀∫ₐᵇ E·dl。'
+    },
+    {
+      id: 'p-k10', chapterId: 'p-c1', sectionId: 'p-s3', title: '电势与电势差',
+      summary: '电势差是单位正电荷从 a 到 b 电场力做的功；电势是相对零电势点的电势差，单位为伏特。',
+      formulas: ['Uₐᵦ = Vₐ − Vᵦ = ∫ₐᵇ E·dl', 'Wₐᵦ = q₀ (Vₐ − Vᵦ)', 'Vₐ = ∫ₐ^∞ E·dl（取无穷远为零）'],
+      params: [
+        { sym: 'Vₐ', name: 'a 点电势', desc: '标量，其值与零电势点的选取有关，通常取无穷远或大地为零' },
+        { sym: 'Uₐᵦ', name: '电势差（电压）', desc: '与零电势点选取无关，1 V = 1 J/C，且 1 V/m = 1 N/C' }
+      ],
+      example: '电场力把 q=2×10⁻⁶ C 的电荷从 a 移到 b 做功 6×10⁻⁴ J，则 Uₐᵦ=W/q=300 V，a 点电势高于 b 点。',
+      page: 150,
+      excerpt: '教材第 150—151 页：a、b 两点间的电势差 Uₐᵦ=Vₐ−Vᵦ=∫ₐᵇ E·dl，电场力做功 Wₐᵦ=q₀(Vₐ−Vᵦ)。通常取无穷远为零电势点，a 点电势 Vₐ=∫ₐ^∞ E·dl。电势的单位是伏特（V），1 V/m=1 N/C。'
+    },
+    {
+      id: 'p-k11', chapterId: 'p-c1', sectionId: 'p-s3', title: '点电荷的电势与电势叠加原理',
+      summary: '点电荷电势与距离成反比；电势是标量，多个电荷的电势直接代数相加，比场强叠加简单。',
+      formulas: ['V = (1/4πε₀)·(q/r)', 'V = Σ Vᵢ = (1/4πε₀) Σ(qᵢ/rᵢ)（标量叠加）', 'V = (1/4πε₀) ∫ dq/r'],
+      params: [
+        { sym: 'r', name: '到场源距离', desc: 'r 不能为零；q>0 时 V>0，q<0 时 V<0（以无穷远为零）' },
+        { sym: '标量叠加', name: '代数和', desc: '电势是标量，叠加时直接相加，无需像场强那样做矢量分解' }
+      ],
+      example: '教材第 155 页：均匀带电球面（q,R），r≥R 时 V=q/(4πε₀r)，r≤R 时 V=q/(4πε₀R)，球面内为等势区。',
+      page: 152,
+      excerpt: '教材第 152 页：点电荷 q 的电势 V=(1/4πε₀)(q/r)。电势叠加原理：点电荷系在某点的电势等于各点电荷单独存在时在该点电势的代数和（标量叠加）。任意带电体 V=(1/4πε₀)∫dq/r。'
+    },
+    {
+      id: 'p-k12', chapterId: 'p-c1', sectionId: 'p-s3', title: '等势面与场强和电势的微分关系',
+      summary: '等势面与电场线正交；场强等于电势的负梯度，方向指向电势降低最快的方向。',
+      formulas: ['Eₗ = −∂V/∂l', 'E = −(∂V/∂x i + ∂V/∂y j + ∂V/∂z k) = −∇V'],
+      params: [
+        { sym: '∇V', name: '电势梯度', desc: '指向电势升高最快的方向；E 与之反向，指向电势降低最快的方向' },
+        { sym: '等势面', name: '电势相等的曲面', desc: '电场线与等势面处处正交，等势面密集处场强大' }
+      ],
+      example: '已知某区域电势沿 x 方向变化 V=kx，则 Eₓ=−∂V/∂x=−k，场强沿 x 负方向，大小为 k。',
+      page: 153,
+      excerpt: '教材第 153—157 页：等势面是电势相等的点构成的曲面，电场线与等势面处处正交。场强与电势的微分关系为 Eₗ=−∂V/∂l，即 E=−(∂V/∂x i + ∂V/∂y j + ∂V/∂z k)，场强方向指向电势降低最快的方向。'
+    },
+    {
+      id: 'p-k13', chapterId: 'p-c1', sectionId: 'p-s4', title: '静电平衡与导体上的电荷分布',
+      summary: '导体静电平衡时内部场强为零，是等势体，净电荷只分布在表面，表面附近场强 E=σ/ε₀。',
+      formulas: ['E（导体内）= 0', 'E（表面附近）= σ/ε₀（垂直表面）'],
+      params: [
+        { sym: '静电平衡', name: '导体内部无电荷定向移动', desc: '条件是导体内部合场强处处为零' },
+        { sym: 'σ', name: '导体表面面电荷密度', desc: '表面附近场强大小与该处 σ 成正比，尖端处 σ 大、易发生尖端放电' }
+      ],
+      example: '空腔导体可屏蔽外电场；接地的空腔导体还能屏蔽内部带电体对外界的影响，这就是静电屏蔽。',
+      page: 159,
+      excerpt: '教材第 159 页：导体静电平衡的条件是内部场强处处为零。静电平衡时导体是等势体、表面是等势面，净电荷只分布在导体表面，导体表面附近的场强大小 E=σ/ε₀，方向垂直于表面。'
+    },
+    {
+      id: 'p-k14', chapterId: 'p-c1', sectionId: 'p-s4', title: '电介质的极化与电位移矢量',
+      summary: '电介质极化后内部场强削弱；引入电位移矢量 D 后，高斯定理右边只含自由电荷，简化计算。',
+      formulas: ['E = E₀ / εᵣ（介质内场强削弱）', 'D = ε₀εᵣ E = ε E', '∮ₛ D·dS = Σ q（自由电荷）'],
+      params: [
+        { sym: 'εᵣ', name: '相对电容率', desc: '真空 εᵣ=1，空气 εᵣ≈1.005，其他电介质 εᵣ>1；ε=ε₀εᵣ 为电容率' },
+        { sym: 'D', name: '电位移矢量', desc: '辅助物理量，D=εE；其通量只与闭合面内的自由电荷有关' },
+        { sym: 'Σq', name: '自由电荷代数和', desc: '不含极化电荷，这正是引入 D 带来的便利' }
+      ],
+      example: '教材第 165 页：半径 R、带电量 q 的均匀介质球（ε₁），球外充满 ε₂，用 D 的高斯定理可求得球内 D=qr/(4πR³)、E=qr/(4πε₁R³)，球外 D=q/(4πr²)、E=q/(4πε₂r²)。',
+      page: 162,
+      excerpt: '教材第 162—164 页：电介质极化后内部场强削弱为 E=E₀/εᵣ。引入电位移矢量 D=ε₀εᵣE=εE，电介质中的高斯定理为 ∮ₛ D·dS=Σq（闭合曲面所围自由电荷的代数和），它避开了难以测定的极化电荷，简化了介质中电场的计算。'
+    },
+    {
+      id: 'p-k15', chapterId: 'p-c1', sectionId: 'p-s5', title: '电容与电容器',
+      summary: '电容是电容器储存电荷本领的量度，等于一个极板电量与极板间电压之比；典型电容器有平板、球形、柱形。',
+      formulas: ['C = Q / U', '平板：C = εS/d', '球形：C = 4πε₀R₁R₂/(R₂−R₁)', '柱形：C = 2πεl / ln(R₂/R₁)'],
+      params: [
+        { sym: 'C', name: '电容', desc: '单位法拉（F），1 F=1 C/V；常用 μF（10⁻⁶F）、pF（10⁻¹²F）' },
+        { sym: 'U', name: '极板间电势差', desc: '两极板带等量异号电荷 +Q、−Q 时的电压' },
+        { sym: 'ε', name: '极板间介质电容率', desc: 'C 与 ε 成正比，插入电介质电容增大' }
+      ],
+      example: '平板电容器极板面积 S=0.02 m²、间距 d=1 mm、中间为空气，C=ε₀S/d≈8.85×10⁻¹²×0.02/0.001≈1.77×10⁻¹⁰ F。',
+      page: 166,
+      excerpt: '教材第 166—167 页：电容器的电容定义为 C=Q/U，单位是法拉（F）。平板电容器 C=εS/d；球形电容器 C=4πε₀R₁R₂/(R₂−R₁)；圆柱形电容器 C=2πεl/ln(R₂/R₁)。'
+    },
+    {
+      id: 'p-k16', chapterId: 'p-c1', sectionId: 'p-s5', title: '电容器储能与电场能量密度',
+      summary: '电容器储存的静电能可视为储存在电场中；能量密度与场强平方成正比，说明电场本身具有能量。',
+      formulas: ['Wₑ = Q²/(2C) = ½CU² = ½UQ', 'wₑ = ½εE²', 'Wₑ = ∫ᵥ ½εE² dV'],
+      params: [
+        { sym: 'Wₑ', name: '电场总能量', desc: '等于充电过程中电源所做的功，单位焦耳（J）' },
+        { sym: 'wₑ', name: '电场能量密度', desc: '单位体积内的电场能量，wₑ=½εE²，对非均匀场需积分求总能量' },
+        { sym: 'V', name: '电场存在的体积', desc: '电场能量分布在整个电场占据的空间，证明电磁场是物质的一种形态' }
+      ],
+      example: '电容 10 μF 的电容器充电到 100 V，储存能量 Wₑ=½CU²=½×10⁻⁵×10⁴=0.05 J。',
+      page: 169,
+      excerpt: '教材第 169—170 页：电容器储存的静电能 Wₑ=Q²/(2C)=½CU²=½UQ。电场能量密度 wₑ=½εE²，即单位体积内的电场能量与场强平方成正比；整个电场的总能量 Wₑ=∫ᵥ ½εE² dV。'
     }
   ],
   questions: [
     {
-      id: 'p-q1', type: 'single', stem: '质量 2 kg 的物体受到 6 N 的合外力，其加速度为？',
-      options: ['2 m/s²', '3 m/s²', '6 m/s²', '12 m/s²'], answer: 1, score: 10, knowledgeId: 'p-k1',
+      id: 'p-q1', type: 'single', stem: '真空中点电荷 q₂ = −3.0×10⁻⁹ C，在距它 0.30 m 处产生的电场强度大小约为（k = 9.0×10⁹ N·m²/C²）？',
+      options: ['300 N/C', '200 N/C', '600 N/C', '900 N/C'], answer: 0, score: 10, knowledgeId: 'p-k4',
       hints: [
-        '先回忆合外力、质量与加速度之间的定量关系。',
-        '牛顿第二定律 F = ma，把已知量代入并解出 a。',
-        '完整解析：a = F/m = 6/2 = 3 m/s²，方向与合外力方向一致。'
+        '先回忆点电荷场强的计算公式，注意用的是电量的绝对值求大小。',
+        'E = k|q|/r²，把 q=3.0×10⁻⁹ C、r=0.30 m 代入。',
+        '完整解析：E = 9.0×10⁹ × 3.0×10⁻⁹ / (0.30)² = 27 / 0.09 = 300 N/C，方向指向负电荷本身。'
       ],
       diagnosis: {
-        reason: '把公式记成了 a = F·m，导致结果偏大。',
-        advice: '回到课件第 9 页，重新推导 F = ma 的量纲与变形。',
-        similar: '若合力变为 9 N，物体质量不变，加速度变为多少？'
+        reason: '把公式记成 E=kq/r（漏了平方），或忘记 r=0.30 的平方是 0.09 而非 0.3。',
+        advice: '回到教材第 137 页点电荷场强公式 E=(1/4πε₀)(Q/r²)eᵣ，注意分母是 r 的平方。',
+        similar: '若距离增大到 0.60 m，场强变为原来的多少倍？'
       }
     },
     {
-      id: 'p-q2', type: 'single', stem: '简谐振动表达式 x = A cos(ωt + φ) 中，A 表示？',
-      options: ['周期', '振幅', '初相位', '频率'], answer: 1, score: 10, knowledgeId: 'p-k3',
+      id: 'p-q2', type: 'single', stem: '半径为 R、带电量为 Q 的均匀带电薄球壳，在球壳内部（r < R）的电场强度为？',
+      options: ['0', 'Q/(4πε₀R²)', 'Q/(4πε₀r²)', 'Q/(4πε₀R)'], answer: 0, score: 10, knowledgeId: 'p-k8',
       hints: [
-        '先看余弦函数前的系数代表什么物理量。',
-        '余弦的取值在 −1 到 1 之间，乘以 A 后位移的最大值就是 A。',
-        '完整解析：A 是振幅，表示偏离平衡位置的最大距离；ω 与周期有关，φ 是初相位。'
+        '先用高斯定理：在球壳内部作一个半径 r<R 的同心球面作为高斯面。',
+        '这个高斯面内包围的电荷是多少？',
+        '完整解析：高斯面在球壳内部时面内电荷为零，由 ∮E·dS=E·4πr²=0 得 E=0，所以均匀带电球壳内部场强处处为零。'
       ],
       diagnosis: {
-        reason: '把振幅与周期、初相位的符号含义混在一起记忆。',
-        advice: '用一张表整理 x = Acos(ωt+φ) 中每个符号的物理意义和单位。',
-        similar: '若振幅加倍、周期不变，振动图像会怎样变化？'
+        reason: '误以为电荷 Q 在内部也产生场强，或把球壳内部与外部场强公式混淆。',
+        advice: '对照教材第 146 页例 6-5：均匀带电球壳 r<R 时 E=0，r>R 时才等于 Q/(4πε₀r²)。',
+        similar: '若是均匀带电的实心介质球，内部场强还为零吗？为什么？'
       }
     },
     {
-      id: 'p-q3', type: 'single', stem: '波速 v、波长 λ 与频率 f 之间的关系是？',
-      options: ['v = λ / f', 'v = λ f', 'v = f / λ', 'v = λ + f'], answer: 1, score: 10, knowledgeId: 'p-k4',
+      id: 'p-q3', type: 'single', stem: '关于静电场中电场强度与电势的关系，下列说法正确的是？',
+      options: ['场强越大处电势越高', '场强为零处电势一定为零', '场强方向是电势升高最快的方向', '场强等于电势的负梯度，方向指向电势降低最快的方向'], answer: 3, score: 10, knowledgeId: 'p-k12',
       hints: [
-        '从“一个周期内波传播多远”入手思考。',
-        '一个周期 T 内波前进一个波长 λ，而 f = 1/T。',
-        '完整解析：v = λ/T = λf，波速由介质决定，频率由波源决定，换介质时频率不变。'
+        '回想 E 和 V 的微分关系：Eₗ = −∂V/∂l。',
+        '负号说明 E 指向 V 减小的方向，而不是增大的方向。',
+        '完整解析：E=−∇V，即场强等于电势的负梯度，方向指向电势降低最快的方向；场强与电势的大小没有必然的正比/零值对应关系。'
       ],
       diagnosis: {
-        reason: '把波长、频率与波速的乘除关系记反。',
-        advice: '用单位检验：λ(m) × f(1/s) = m/s，正好是速度单位。',
-        similar: '同一列波从空气进入水中，波速变大，波长和频率分别如何变化？'
+        reason: '把“场强是电势的变化率”误解为“场强与电势大小成正比”，或记错梯度的方向。',
+        advice: '回到教材第 157 页：Eₗ=−∂V/∂l，负号是关键，说明 E 指向电势降落最快的方向。',
+        similar: '匀强电场中沿电场线方向电势如何变化？垂直电场线方向呢？'
       }
     },
     {
-      id: 'p-q4', type: 'short', stem: '说明动量守恒定律的内容及其适用条件，并举一个可近似应用的情境。',
-      options: [], answer: null, score: 20, knowledgeId: 'p-k2',
+      id: 'p-q4', type: 'short', stem: '叙述电介质中的高斯定理，写出电位移矢量 D 与场强 E 的关系，并说明引入 D 为什么能简化电介质中电场的计算。',
+      options: [], answer: null, score: 20, knowledgeId: 'p-k14',
       hints: [
-        '先写出守恒的表达式，再说明它对系统施加了什么条件。',
-        '关键词是“合外力为零”和“内力远大于外力”。',
-        '完整解析：系统不受外力或合外力为零时总动量守恒，表达式为 m₁v₁ + m₂v₂ = m₁v₁′ + m₂v₂′；碰撞、爆炸等内力远大于外力的过程可近似应用。'
+        '先写出电介质中高斯定理的积分形式，注意右边是哪种电荷。',
+        '说明 D 和 E 的关系式，以及 ε=ε₀εᵣ 的含义。',
+        '完整解析：∮ₛ D·dS=Σq（自由电荷），D=ε₀εᵣE=εE。右边只含自由电荷，避开了难以测定的极化电荷，所以先求 D 再求 E 更简便。'
       ],
-      reference: '动量守恒定律指系统不受外力或所受合外力为零时，系统总动量保持不变，即 m₁v₁ + m₂v₂ = m₁v₁′ + m₂v₂′。适用条件是合外力为零，或内力远大于外力，例如碰撞、爆炸等短时间强相互作用过程可近似使用。',
-      keywords: ['合外力', '为零', '碰撞'],
+      reference: '电介质中的高斯定理：通过任意闭合曲面的电位移通量，等于该曲面所包围的自由电荷的代数和，即 ∮ₛ D·dS=Σq。电位移矢量与场强的关系为 D=ε₀εᵣE=εE，其中 ε=ε₀εᵣ 是电介质的电容率。引入 D 后定理右边只含自由电荷，避开了难以直接测定的极化电荷；只要知道自由电荷分布并利用对称性，就可先求出 D，再由 D=εE 求出场强 E，从而大大简化均匀电介质中电场的计算。',
+      keywords: ['D', '自由电荷', 'εE'],
       diagnosis: {
-        reason: '只记住了公式，没有说清适用条件为什么重要，也缺少具体情境。',
-        advice: '按“内容—表达式—条件—实例”四步组织答案。',
-        similar: '在粗糙水平面上两球碰撞，动量还守恒吗？为什么？'
+        reason: '只写出 D=εE，没有说明高斯定理的形式，也没有解释“为什么简化”。',
+        advice: '按“定理形式—D 与 E 关系—简化的原因（避开极化电荷）”三层作答，参考教材第 162—164 页。',
+        similar: '为什么电介质中的高斯定理右边不出现极化电荷？极化电荷的影响体现在哪里？'
       }
     }
   ],
   assignments: [
     {
-      id: 'p-a1', mode: 'quiz', title: '第 1 次课堂问答 · 牛顿定律与简谐振动',
-      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-28 09:20', note: '课堂内 10 分钟完成'
+      id: 'p-a1', mode: 'quiz', title: '第 1 次课堂问答 · 电场强度与高斯定理',
+      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
     },
     {
-      id: 'p-a2', mode: 'homework', title: '课后作业 · 波动与动量守恒',
-      questionIds: ['p-q3', 'p-q4'], publishedAt: '11-28 16:40', note: '11-29 12:30 前提交'
+      id: 'p-a2', mode: 'homework', title: '课后作业 · 电势与电介质',
+      questionIds: ['p-q3', 'p-q4'], publishedAt: '11-27 16:40', note: '教材 P157—164 例题后可完成'
     }
   ],
+  textbook: {
+    examples: [
+      {
+        id: 'p-exm-1', title: '例 6-1 · 电偶极子中垂线上的场强', page: 138, knowledgeId: 'p-k4',
+        stem: '计算电偶极子（+q 与 −q 相距 l）中垂线上任一点 P 的场强，设 P 到连线中点的距离为 y，且 y≫l。',
+        solution: '两电荷在 P 点的场强大小相等、方向关于连线对称，垂直分量抵消、沿连线分量叠加，得 E = −(1/4πε₀)(ql/y³) = −(1/4πε₀)(p/y³)，其中 p=ql 为电偶极矩，方向与 p 相反。',
+        source: '教材第 138 页'
+      },
+      {
+        id: 'p-exm-2', title: '例 6-2 · 无限长均匀带电细棒的场强', page: 140, knowledgeId: 'p-k5',
+        stem: '求线电荷密度为 λ 的无限长均匀带电细棒外、距棒 a 处的场强。',
+        solution: '把棒分成无数电荷元，积分后垂直分量抵消、平行分量叠加，得 E=λ/(2πε₀a)，方向垂直于细棒（λ>0 时背离棒）。可见无限长带电体场强与 a 成反比。',
+        source: '教材第 140 页'
+      },
+      {
+        id: 'p-exm-3', title: '例 6-5 · 均匀带电球壳的场强', page: 146, knowledgeId: 'p-k8',
+        stem: '求半径为 R、带电量为 q 的均匀带电薄球壳内外的场强分布。',
+        solution: '取半径 r 的同心球面为高斯面。r>R 时面内电荷为 q，E·4πr²=q/ε₀，得 E=q/(4πε₀r²)（同点电荷）；r<R 时面内电荷为零，E=0。',
+        source: '教材第 146 页'
+      },
+      {
+        id: 'p-exm-4', title: '例 6-6 · 无限大均匀带电平面的场强', page: 147, knowledgeId: 'p-k8',
+        stem: '求面电荷密度为 σ 的无限大均匀带电平面两侧的场强。',
+        solution: '取轴线垂直于平面的圆柱面为高斯面，两底面在平面两侧对称位置。通量 E·2ΔS=σΔS/ε₀，得 E=σ/(2ε₀)，两侧均为匀强电场。两等量异号平行板之间 E=σ/ε₀、板外 E=0。',
+        source: '教材第 147 页'
+      },
+      {
+        id: 'p-exm-5', title: '例 6-9 · 均匀带电球面的电势', page: 155, knowledgeId: 'p-k11',
+        stem: '求半径为 R、带电量为 q 的均匀带电球面内外的电势分布（取无穷远为零）。',
+        solution: 'r≥R 时 V=∫ᵣ^∞ E·dr=∫ᵣ^∞ q/(4πε₀r²) dr=q/(4πε₀r)；r≤R 时因球面内 E=0，积分从 R 开始，得 V=q/(4πε₀R)，即球面内为等势区。',
+        source: '教材第 155 页'
+      },
+      {
+        id: 'p-exm-6', title: '例 6-11 · 均匀带电介质球内外的场强', page: 165, knowledgeId: 'p-k14',
+        stem: '半径为 R、总电量为 q 的均匀带电介质球，球内电容率为 ε₁、球外充满电容率为 ε₂ 的均匀介质，求球内外的 D 和 E。',
+        solution: '由 D 的高斯定理：球内 D·4πr²=q r³/R³，得 D=qr/(4πR³)、E=D/ε₁=qr/(4πε₁R³)；球外 D·4πr²=q，得 D=q/(4πr²)、E=q/(4πε₂r²)。在 r=R 处 D 连续而 E 不连续。',
+        source: '教材第 165 页'
+      },
+      {
+        id: 'p-exm-7', title: '例 6-12 · 平行长直导线的分布电容', page: 167, knowledgeId: 'p-k15',
+        stem: '两根半径为 a、轴线相距 d（d≫a）的平行长直导线，求单位长度的分布电容。',
+        solution: '先由高斯定理求两导线间的场强分布，再积分求两导线间电势差 U，最后由 C′=λ/U 得单位长度电容 C′=πε₀/ln(d/a)。',
+        source: '教材第 167 页'
+      },
+      {
+        id: 'p-exm-8', title: '例 6-14 · 同轴圆柱面的电场能量与电容', page: 170, knowledgeId: 'p-k16',
+        stem: '长为 l、内半径 a、外半径 b 的同轴圆柱面间充满电容率为 ε 的介质，带电量 ±Q，求电场总能量并由此推出电容。',
+        solution: '两柱面间 E=λ/(2πεr)（λ=Q/l），能量密度 wₑ=½εE²。取薄圆柱壳 dV=2πrl dr 积分，得 Wₑ=∫ₐᵇ ½εE²·2πrl dr = Q²/(4πεl) ln(b/a)。再由 Wₑ=Q²/(2C) 得 C=2πεl/ln(b/a)。',
+        source: '教材第 170 页'
+      }
+    ],
+    exercises: [
+      {
+        id: 'p-exr-1', title: '习题 6-1 · 库仑力与万有引力比较', page: 141, knowledgeId: 'p-k2', difficulty: '基础',
+        stem: '比较氢原子中电子与质子之间的库仑力和万有引力的大小，说明为什么在原子尺度上万有引力可以忽略。',
+        reference: '库仑力 Fₑ=k e²/r²，万有引力 Fₘ=G mₑmₚ/r²，比值 Fₑ/Fₘ=k e²/(G mₑmₚ)≈2.3×10³⁹，库仑力远大于万有引力，故万有引力可忽略。'
+      },
+      {
+        id: 'p-exr-2', title: '习题 6-3 · 点电荷场强公式的适用条件', page: 142, knowledgeId: 'p-k4', difficulty: '基础',
+        stem: '有人认为由 E=kQ/r² 可知，当 r→0 时 E→∞。这种说法对吗？为什么？',
+        reference: '不对。E=kQ/r² 是点电荷的场强公式，r→0 时带电体已不能看作点电荷，公式失效；此时必须考虑电荷的实际分布，场强不会趋于无穷大。'
+      },
+      {
+        id: 'p-exr-3', title: '习题 6-9 · 高斯定理的概念判断', page: 148, knowledgeId: 'p-k7', difficulty: '提高',
+        stem: '判断下列说法是否正确并说明理由：（1）高斯面内电荷代数和为零，则高斯面上各点场强必为零；（2）高斯面上各点场强为零，则高斯面内必无电荷。',
+        reference: '（1）错误。面内电荷代数和为零只说明总通量为零，不代表面上各点 E 为零（如电偶极子的包围面）。（2）错误。面上 E 处处为零说明总通量为零、面内净电荷为零，但面内可存在等量异号电荷。'
+      },
+      {
+        id: 'p-exr-4', title: '习题 6-15 · 由场强求电势差', page: 157, knowledgeId: 'p-k10', difficulty: '基础',
+        stem: '匀强电场的场强为 E，方向沿 x 轴正方向，求 x=a 与 x=b（a<b）两点间的电势差 Uₐᵦ，并比较哪点电势高。',
+        reference: 'Uₐᵦ=Vₐ−Vᵦ=∫ₐᵇ E·dl=E(a−b)。因 a<b，Uₐᵦ<0，即 Vₐ<Vᵦ，沿电场线方向（x 增大方向）电势降低，故 b 点电势低、a 点电势高。'
+      },
+      {
+        id: 'p-exr-5', title: '习题 6-21 · 导体球壳的感应电荷', page: 158, knowledgeId: 'p-k13', difficulty: '提高',
+        stem: '把电量为 +q 的点电荷放在中性导体球壳的球心，求球壳内表面和外表面的感应电荷各是多少；若球壳接地，结果又如何？',
+        reference: '不接地时：内部电场使内表面感应出 −q，由电荷守恒外表面感应出 +q。接地后：外表面电荷被大地中和，外表面不带电，内表面仍为 −q。'
+      },
+      {
+        id: 'p-exr-6', title: '习题 6-27 · 电介质对电容的影响', page: 172, knowledgeId: 'p-k15', difficulty: '综合',
+        stem: '平行板电容器两极板间电压 U 保持不变（始终接电源），插入相对电容率为 εᵣ 的电介质充满空间，极板上的电荷变为原来的几倍？场强变为原来的几倍？若充电后先断开电源再插入介质，结果又如何？',
+        reference: '电压不变时：C 变为 εᵣ 倍，Q=CU 也变为 εᵣ 倍；E=U/d 不变。断开电源后：Q 不变，C 变为 εᵣ 倍，U=Q/C 变为 1/εᵣ 倍；E=U/d 也变为 1/εᵣ 倍。'
+      },
+      {
+        id: 'p-exr-7', title: '习题 6-30 · 球形电容器电场能量的证明', page: 172, knowledgeId: 'p-k16', difficulty: '提高',
+        stem: '球形电容器两同心金属球面半径为 R₁ 和 R₂（R₁<R₂），带电量分别为 +Q 和 −Q，两球面间充满电容率为 ε 的均匀电介质。设其电容为 C，证明电场的能量为 Wₑ=Q²/(2C)。',
+        reference: '两球面间 E=Q/(4πεr²)，能量密度 wₑ=½εE²。取半径 r、厚 dr 的薄球壳 dV=4πr² dr 积分：Wₑ=∫_{R₁}^{R₂} ½εE²·4πr² dr = Q²/(8πε) ∫_{R₁}^{R₂} dr/r² = Q²(R₂−R₁)/(8πεR₁R₂)。而球形电容 C=4πεR₁R₂/(R₂−R₁)，代入即得 Wₑ=Q²/(2C)。'
+      },
+      {
+        id: 'p-exr-8', title: '讨论参考题之四 · 均匀场强方向区域场强大小相等', page: 172, knowledgeId: 'p-k12', difficulty: '综合',
+        stem: '证明：在真空中的静电场中，凡是电场强度方向处处相同的区域，电场强度的大小必定处处相等。',
+        reference: '在该区域取一矩形闭合回路，一组对边平行于 E、长度为 l，另一组对边垂直于 E。沿此回路积分 ∮E·dl=E₁l−E₂l（垂直边贡献为零）。由静电场环路定理 ∮E·dl=0，得 E₁=E₂。由于回路位置可任选，故场强大小处处相等。'
+      }
+    ]
+  },
   shortAnswers: {
-    high: '动量守恒定律指系统不受外力或合外力为零时总动量保持不变，表达式为 m₁v₁ + m₂v₂ = m₁v₁′ + m₂v₂′。适用条件是合外力为零，或内力远大于外力，例如两球碰撞、爆炸等过程可以近似应用。',
-    mid: '系统合外力为零时总动量不变，公式是 m₁v₁ + m₂v₂ = m₁v₁′ + m₂v₂′，碰撞过程可以用。',
-    low: '就是碰撞前后动量加起来一样。'
+    high: '电介质中的高斯定理：通过任意闭合曲面的电位移通量，等于该曲面所包围的自由电荷的代数和，即 ∮ₛ D·dS=Σq。电位移矢量与场强的关系为 D=ε₀εᵣE=εE，其中 ε=ε₀εᵣ 为电介质的电容率。引入 D 后定理右边只含自由电荷，避开了难以直接测定的极化电荷；只要知道自由电荷分布并利用对称性，就可先求出 D，再由 D=εE 求出场强 E，从而大大简化均匀电介质中电场的计算。',
+    mid: '电介质中的高斯定理是 ∮D·dS=Σq（自由电荷），D 和 E 的关系是 D=εE。引入 D 是因为公式里只出现自由电荷，不用考虑极化电荷，计算更方便。',
+    low: 'D 等于 ε 乘以 E，高斯定理写出来只跟自由电荷有关。'
   },
   seedMessages: [
     {
       id: 'p-seed-1', authorId: 'p03', authorName: '刘洋', anonymous: true, visibility: 'public',
-      body: '老师，简谐振动里的初相位 φ 到底怎么确定？画图的时候总是搞不清。',
+      body: '老师，用高斯定理求场强时为什么一定要先分析对称性？我随便选一个闭合面，不也能算出 E 吗？',
       questionId: 'p-q2',
-      answer: 'φ 由 t = 0 时的位移和速度方向共同决定：先看初始位移在平衡位置的哪一侧，再看初始速度方向，两者结合就能唯一确定 φ，通常取 −π 到 π 之间的值。',
-      answeredBy: '刘老师', createdAt: '11-28 19:05', answeredAt: '11-28 19:40'
+      answer: '高斯定理对任意闭合面都成立，但要把 E 从积分号里提出来（∮E·dS=E·S），就要求面上各点 E 大小相等、方向与面元法向平行或垂直，这只有在电荷分布具有球对称、轴对称或面对称时才能做到。随便选面，E 在面上是变量，积分积不出来。参考教材第 146 页的解题步骤。',
+      answeredBy: '刘老师', createdAt: '11-27 19:05', answeredAt: '11-27 19:40'
     }
   ]
 };
@@ -2035,7 +2426,7 @@ window.SUBJECTS.em = {
  * 支持三门课程：高等数学 / 大学物理 / 电磁场
  * ============================================================ */
 
-const STORAGE_KEY = 'zhike-ai-demo:v11';
+const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
@@ -2203,6 +2594,10 @@ function buildExamPapers(subject) {
 
 /** 教材例题（教师端可见，含解析）与课后习题（可下发，学生端只见题目） */
 function buildTextbook(subject) {
+  /* 已按真实教材整理例题与习题的课程，直接使用其教材数据 */
+  if (subject.textbook && subject.textbook.examples && subject.textbook.exercises) {
+    return clone(subject.textbook);
+  }
   const levels = ['基础', '提高', '综合'];
 
   const examples = subject.points.map((point, index) => ({
@@ -2233,6 +2628,7 @@ function buildTextbook(subject) {
 
 function buildSeed() {  const seed = {
     version: 3,
+  storageKey: STORAGE_KEY,
     session: { role: null, userId: null },
     courseId: 'math',
     courses: {},
@@ -2408,6 +2804,7 @@ const ui = {
   editQuestionId: null,
   mmCollapsed: {},
   mmEdit: false,
+  mmScale: 1,
   editingNode: null,
   activeQuestionId: 'q1',
   qaTab: 'private',
@@ -2428,6 +2825,9 @@ const ui = {
   pendingJoin: '',
   learnTab: 'map',
   pptPage: null,
+  aiPage: null,
+  aiSection: null,
+  pptPreviewPage: null,
   aiHomeChat: [],
   activeAiQuestionId: null,
   scanOpen: false,
@@ -2507,6 +2907,9 @@ function resetDb() {
   ui.practiceItem = null;
   ui.learnTab = 'map';
   ui.pptPage = null;
+  ui.aiPage = null;
+  ui.aiSection = null;
+  ui.pptPreviewPage = null;
   ui.wrongCourseId = '';
   ui.wrongSelected = [];
   ui.wrongPointFilter = '';
@@ -2712,10 +3115,22 @@ function myExerciseSubmission(distId) {
 
 /* ---------------- 模拟 AI ---------------- */
 
-/** 统一生成课件引用，保证每段 AI 输出都能回溯课本 */
+/** 定位知识点所属章节与小节 */
+function sectionTitleOfPoint(point) {
+  if (!point) return { chapter: '', section: '' };
+  for (const chapter of db.mindMap) {
+    const section = chapter.sections.find(s => s.id === point.sectionId);
+    if (section) return { chapter: chapter.title, section: section.title };
+  }
+  return { chapter: '', section: '' };
+}
+
+/** 统一生成教材引用，保证每段 AI 输出都能回溯课本原文 */
 function citePoint(point, withExcerpt) {
   if (!point) return '';
-  const head = `课件依据：《${db.courseware.fileName}》第 ${point.page} 页 · ${point.title}`;
+  const where = sectionTitleOfPoint(point);
+  const place = [where.chapter, where.section].filter(Boolean).join(' · ');
+  const head = `教材依据：${place ? place + '，' : ''}第 ${point.page} 页「${point.title}」`;
   return withExcerpt ? `${head}\n原文：“${point.excerpt}”` : `（${head}）`;
 }
 
@@ -3217,6 +3632,7 @@ function switchStudentCourse(courseId, silent) {
   ui.sectionId = db.mindMap[0]?.sections[0]?.id || null;
   ui.mmCollapsed = {};
   ui.mmEdit = false;
+  ui.mmScale = 1;
   ui.editingNode = null;
   ui.drawerPointId = null;
   ui.practiceItem = null;
@@ -3255,6 +3671,45 @@ function openCoursewareAt(page) {
   ui.pptPage = Number(page) || null;
   if (location.hash !== '#/student/learn') location.hash = '#/student/learn';
   render();
+}
+
+/* ---------------- 教师课件管理 ---------------- */
+
+function openTeacherPpt(page) {
+  const pages = coursewarePages();
+  ui.pptPreviewPage = Number(page) || (pages[0] ? pages[0].page : 1);
+  render();
+}
+
+function gotoTeacherPptPage(page) {
+  const target = Number(page);
+  if (!target) return;
+  ui.pptPreviewPage = target;
+  render();
+}
+
+function closeTeacherPpt() {
+  ui.pptPreviewPage = null;
+  render();
+}
+
+/** 保存教师标注的知识点课件页码 */
+function savePointPages() {
+  let changed = 0;
+  document.querySelectorAll('[data-point-page]').forEach(input => {
+    const point = P(input.dataset.pointPage);
+    const value = Number(input.value);
+    if (!point || !value || value === point.page) return;
+    point.page = value;
+    changed++;
+  });
+  if (!changed) {
+    toast('页码没有变化');
+    return;
+  }
+  saveDb();
+  render();
+  toast(`已更新 ${changed} 个知识点的课件页码，学生端同步`);
 }
 
 /** 在学生作业页右侧查看某次已完成的作业/习题 */
@@ -3633,6 +4088,7 @@ function onScanResult(text) {
 
 function resetDemo() {
   resetDb();
+  ui.mmScale = 1;
   location.hash = '#/login';
   render();
   toast('演示数据已重置');
@@ -4088,27 +4544,92 @@ function matchPointByText(text) {
   return best;
 }
 
-function aiHomeReply(text) {
+function aiHomeReply(text, page) {
+  const pagePoints = page ? db.points.filter(point => point.page === Number(page)) : [];
   if (/练习题|来一道|出题|考考我/.test(text)) {
-    const question = db.questions.find(q => q.type === 'single') || db.questions[0];
+    const question = db.questions.find(q => q.type === 'single' && pagePoints.some(point => point.id === q.knowledgeId))
+      || db.questions.find(q => q.type === 'single')
+      || db.questions[0];
     const point = P(question.knowledgeId);
     return {
       pointId: point.id,
-      answer: `可以试试这道题：\n${question.stem}\n\n先自己判断，再点「给我一点提示」，不要直接看答案。题目对应课件第 ${point.page} 页「${point.title}」。`
+      page: point.page,
+      grounded: true,
+      source: {
+        page: point.page,
+        title: point.title,
+        section: sectionTitleOfPoint(point).section,
+        excerpt: point.excerpt
+      },
+      answer: `可以试试这道题：\n${question.stem}\n\n先自己判断，再点「给我一点提示」，不要直接看答案。\n\n${citePoint(point, true)}`
     };
   }
 
-  const point = matchPointByText(text);
+  const matched = matchPointByText(text);
+  const point = matched || pagePoints[0];
   if (!point) {
     return {
       pointId: null,
-      answer: `我在课件里没有检索到直接对应的段落。可以换一个课件中的术语再问，或者从「知识导图」点开对应章节，我会按第 ${db.points[0].page} 页起的相关段落继续解释。`
+      page: null,
+      grounded: false,
+      source: null,
+      answer: `教材（第一章第四、五节，P13—24）中没有检索到与「${text}」直接对应的定义或例题。\n为避免给出超出教材的说法，我不做额外发挥；建议换用教材中的术语提问，或直接向老师确认。`
     };
   }
   return {
     pointId: point.id,
-    answer: `${point.summary}\n核心公式：${point.formulas[0]}\n课件依据：《${db.courseware.fileName}》第 ${point.page} 页「${point.title}」。`
+    page: point.page,
+    grounded: true,
+    source: {
+      page: point.page,
+      title: point.title,
+      section: sectionTitleOfPoint(point).section,
+      excerpt: point.excerpt
+    },
+    answer: `${matched ? '' : `教材中没有直接出现你这句话的表述，我先按当前页「${point.title}」回答：\n\n`}${point.summary}\n\n核心结论：${point.formulas[0]}\n\n${citePoint(point, true)}`
   };
+}
+
+/** 当前提问关联的教材页：优先所选小节，其次手动选择，最后第一页 */
+function aiSectionChoices() {
+  return sectionsWithPages().flatMap(group => group.sections.map(item => ({ chapter: group.chapter, ...item })));
+}
+
+function aiCurrentPage() {
+  const flat = aiSectionChoices();
+  if (!flat.length) return null;
+  if (ui.aiSection) {
+    const section = flat.find(item => item.section.id === ui.aiSection);
+    if (section && section.pages.length) {
+      const wanted = Number(ui.aiPage);
+      return section.pages.includes(wanted) ? wanted : section.pages[0];
+    }
+  }
+  const pages = coursewarePages();
+  const wanted = Number(ui.aiPage || ui.pptPage);
+  return pages.some(item => item.page === wanted) ? wanted : pages[0].page;
+}
+
+function setAiPage(page) {
+  const value = Number(page) || null;
+  ui.aiPage = value;
+  const section = aiSectionChoices().find(item => item.pages.includes(value));
+  if (section) ui.aiSection = section.section.id;
+  render();
+}
+
+function setAiSection(sectionId) {
+  const section = aiSectionChoices().find(item => item.section.id === sectionId);
+  if (!section) return;
+  ui.aiSection = sectionId;
+  ui.aiPage = section.pages[0] || null;
+  render();
+}
+
+function setAiChapter(chapterId) {
+  const group = sectionsWithPages().find(item => item.chapter.id === chapterId);
+  if (!group || !group.sections.length) return;
+  setAiSection(group.sections[0].section.id);
 }
 
 function askAiHome(text) {
@@ -4117,9 +4638,17 @@ function askAiHome(text) {
     toast('先输入你的问题');
     return false;
   }
-  const reply = aiHomeReply(question);
+  const page = aiCurrentPage();
+  const reply = aiHomeReply(question, page);
   ui.aiHomeChat.push({ role: 'user', text: question });
-  ui.aiHomeChat.push({ role: 'ai', text: reply.answer, pointId: reply.pointId });
+  ui.aiHomeChat.push({
+    role: 'ai',
+    text: reply.answer,
+    pointId: reply.pointId,
+    page: reply.page,
+    grounded: reply.grounded,
+    source: reply.source
+  });
 
   db.aiQuestions.unshift({
     id: `aiq-${Date.now()}`,
@@ -4878,6 +5407,7 @@ function mindmapView() {
 
   const height = Math.max(padTop * 2 + cursor * rowH, 220);
   const width = colX[3] + colW[3];
+  const scale = Math.max(0.4, Math.min(3, Number(ui.mmScale) || 1));
 
   const paths = links.map(({ from, to }) => {
     const x1 = from.x + from.w;
@@ -4916,13 +5446,21 @@ function mindmapView() {
     <span class="badge brand">章节</span>
     <span class="badge">小节</span>
     <span class="badge ai">知识点</span>
-    <span class="mm-hint">点击章节或小节可折叠，点击知识点查看公式与课件页码</span>
+    <span class="mm-hint">点击章节或小节可折叠，点击知识点查看公式与课件页码 · Ctrl + 滚轮或右侧按钮可缩放</span>
+    <div class="mm-zoom">
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="out" title="缩小">－</button>
+      <span class="mm-zoom-label">${Math.round(scale * 100)}%</span>
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="in" title="放大">＋</button>
+      <button type="button" class="mm-zoom-btn" data-act="mm-zoom" data-dir="reset" title="重置为 100%">⟲</button>
+    </div>
     ${db.session.role === 'teacher' ? `<button class="btn btn-sm ${ui.mmEdit ? 'btn-primary' : ''}" data-act="toggle-mm-edit">${ui.mmEdit ? '完成编辑' : '✏️ 编辑导图'}</button>` : ''}
   </div>
   <div class="mindmap-scroll">
-    <div class="mindmap-canvas" style="width:${width}px;height:${height}px">
-      <svg class="mm-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths}</svg>
-      ${nodeHtml}
+    <div class="mm-stage" style="width:${Math.ceil(width * scale)}px;height:${Math.ceil(height * scale)}px">
+      <div class="mindmap-canvas" style="width:${width}px;height:${height}px;transform:scale(${scale});transform-origin:0 0">
+        <svg class="mm-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths}</svg>
+        ${nodeHtml}
+      </div>
     </div>
   </div>
   ${db.session.role === 'teacher' && ui.mmEdit ? mindmapEditor() : ''}`;
@@ -5269,7 +5807,11 @@ function studioView() {
         <div class="divider"></div>
         <div class="gen-steps">${stepsHtml}</div>
         <input type="file" id="ppt-input" accept=".ppt,.pptx" style="display:none">
-        <button class="btn btn-block" style="margin-top:14px" data-act="open-upload">${gen ? '正在处理…' : '选择新的课件文件'}</button>
+        <div class="q-actions" style="margin-top:10px">
+          <button class="btn btn-sm" data-act="teacher-ppt-preview">预览课件</button>
+          <span class="form-hint" style="margin:0">可在下方标注知识点页码</span>
+        </div>
+        <button class="btn btn-block" style="margin-top:10px" data-act="open-upload">${gen ? '正在处理…' : '选择新的课件文件'}</button>
       </div>
     </div>
 
@@ -5323,6 +5865,34 @@ function studioView() {
     <div class="card-body" style="padding:0">${mindmapView()}</div>
   </div>
 
+  <div class="card" style="margin-top:16px">
+    <div class="card-head">
+      <div>
+        <h2>课件页码标注</h2>
+        <div class="sub">修改后学生端知识导图、课件 PPT 与 AI 回答引用同步更新</div>
+      </div>
+      <div class="tag-row">
+        <button class="btn btn-sm" data-act="teacher-ppt-preview">预览课件</button>
+        <button class="btn btn-sm btn-primary" data-act="save-point-pages">保存页码</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0 18px">
+      <table class="table">
+        <thead><tr><th>知识点</th><th>所属章节</th><th>课件页码</th></tr></thead>
+        <tbody>
+          ${db.mindMap.flatMap(chapter => chapter.sections.flatMap(section => section.points.map(id => ({ chapter, section, point: P(id) }))))
+            .filter(row => row.point)
+            .map(row => `
+              <tr>
+                <td>${esc(row.point.title)}</td>
+                <td>${esc(row.chapter.title)} / ${esc(row.section.title)}</td>
+                <td><input class="input" type="number" min="1" max="${db.courseware.pages}" value="${row.point.page}" data-point-page="${row.point.id}" style="width:90px"></td>
+              </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-head">
       <div>
@@ -5332,6 +5902,46 @@ function studioView() {
       <span class="badge ai">AI 生成 · 可编辑</span>
     </div>
     <div class="card-body">${questionHtml}</div>
+  </div>
+  ${teacherPptModal(ui.pptPreviewPage)}`;
+}
+
+/** 教师课件预览弹窗：与学生端共用幻灯片渲染 */
+function teacherPptModal(activePage) {
+  if (!activePage) return '';
+  const pages = coursewarePages();
+  if (!pages.length) return '';
+  const total = db.courseware.pages || pages[pages.length - 1].page;
+  const current = pages.find(item => item.page === Number(activePage)) || pages[0];
+  const index = pages.indexOf(current);
+  const prev = pages[index - 1];
+  const next = pages[index + 1];
+
+  return `
+  <div class="modal-mask">
+    <div class="modal teacher-ppt-modal">
+      <div class="drawer-head">
+        <div>
+          <h3>课件预览</h3>
+          <div class="sub">${esc(db.courseware.fileName)} · 第 ${current.page} 页 / 共 ${total} 页 · 仅教师可见</div>
+        </div>
+        <button class="close-btn" data-act="close-teacher-ppt">×</button>
+      </div>
+      <div class="card-body">
+        <div class="ppt-pages" style="flex-direction:row;overflow-x:auto;max-height:none;margin-bottom:12px">
+          ${pages.map(item => `
+            <button class="ppt-page-chip ${item.page === current.page ? 'active' : ''}" data-act="teacher-ppt-page" data-page="${item.page}">
+              <b>${item.page}</b><span>${esc(item.points[0].title)}</span>
+            </button>`).join('')}
+        </div>
+        <div class="ppt-stage">${pptSlideHtml(current, total)}</div>
+        <div class="ppt-nav">
+          <button class="btn btn-sm" data-act="teacher-ppt-page" data-page="${prev ? prev.page : ''}" ${prev ? '' : 'disabled'}>← 上一页</button>
+          <span class="ppt-nav-hint">第 ${current.page} 页 · 已标注 ${index + 1}/${pages.length}</span>
+          <button class="btn btn-sm" data-act="teacher-ppt-page" data-page="${next ? next.page : ''}" ${next ? '' : 'disabled'}>下一页 →</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -6592,6 +7202,44 @@ function coursewarePages() {
     .map(page => ({ page, points: map[page] }));
 }
 
+/** 按章节/小节聚合有知识点标注的页码 */
+function sectionsWithPages() {
+  return db.mindMap.map(chapter => ({
+    chapter,
+    sections: chapter.sections.map(section => {
+      const points = section.points.map(P).filter(Boolean).sort((a, b) => a.page - b.page);
+      const pages = [...new Set(points.map(point => point.page))];
+      return { section, points, pages };
+    }).filter(item => item.points.length)
+  })).filter(item => item.sections.length);
+}
+
+/** 单页幻灯片，学生端与教师预览共用 */
+function pptSlideHtml(pageData, total) {
+  const main = pageData.points[0];
+  const more = pageData.points.slice(1);
+  return `
+  <div class="ppt-slide">
+    <div class="ppt-slide-top">
+      <span>${esc(db.course.name)} · ${esc(db.course.code)}</span>
+      <span>第 ${pageData.page} 页 / 共 ${total} 页</span>
+    </div>
+    <h2>${esc(main.title)}</h2>
+    <p class="ppt-summary">${esc(main.summary || '')}</p>
+    ${main.formulas && main.formulas.length ? `
+      <div class="ppt-formulas">${main.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}
+    ${more.length ? `
+      <div class="ppt-more">
+        <div class="ppt-more-title">本页还包含</div>
+        ${more.map(point => `<button class="chip-btn" data-act="open-point" data-id="${point.id}">${esc(point.title)}</button>`).join('')}
+      </div>` : ''}
+    <div class="ppt-slide-foot">
+      <span>${esc(main.excerpt || '')}</span>
+      <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${main.id}">在导图中查看 →</button>
+    </div>
+  </div>`;
+}
+
 function coursewareView() {
   const pages = coursewarePages();
   if (!pages.length) {
@@ -6602,8 +7250,6 @@ function coursewareView() {
   const index = pages.indexOf(current);
   const prev = pages[index - 1];
   const next = pages[index + 1];
-  const main = current.points[0];
-  const more = current.points.slice(1);
 
   return `
   <div class="card-body ppt-layout">
@@ -6617,27 +7263,7 @@ function coursewareView() {
     </div>
 
     <div class="ppt-main">
-      <div class="ppt-stage">
-        <div class="ppt-slide">
-          <div class="ppt-slide-top">
-            <span>${esc(db.course.name)} · ${esc(db.course.code)}</span>
-            <span>第 ${current.page} 页 / 共 ${total} 页</span>
-          </div>
-          <h2>${esc(main.title)}</h2>
-          <p class="ppt-summary">${esc(main.summary || '')}</p>
-          ${main.formulas && main.formulas.length ? `
-            <div class="ppt-formulas">${main.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}
-          ${more.length ? `
-            <div class="ppt-more">
-              <div class="ppt-more-title">本页还包含</div>
-              ${more.map(point => `<button class="chip-btn" data-act="open-point" data-id="${point.id}">${esc(point.title)}</button>`).join('')}
-            </div>` : ''}
-          <div class="ppt-slide-foot">
-            <span>${esc(main.excerpt || '')}</span>
-            <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${main.id}">在导图中查看 →</button>
-          </div>
-        </div>
-      </div>
+      <div class="ppt-stage">${pptSlideHtml(current, total)}</div>
       <div class="ppt-nav">
         <button class="btn btn-sm" data-act="ppt-page" data-page="${prev ? prev.page : ''}" ${prev ? '' : 'disabled'}>← 上一页</button>
         <span class="ppt-nav-hint">当前第 ${current.page} 页 · 已标注页 ${index + 1}/${pages.length}</span>
@@ -6654,17 +7280,37 @@ function aiChatView() {
     '给我一道练习题'
   ];
 
+  const pages = coursewarePages();
+  const aiPage = aiCurrentPage();
+  const pageTitles = {};
+  pages.forEach(item => { pageTitles[item.page] = item.points[0].title; });
+  const chapterGroups = sectionsWithPages();
+  const flatSections = chapterGroups.flatMap(group => group.sections.map(item => ({ chapter: group.chapter, ...item })));
+  const activeSection = flatSections.find(item => item.section.id === ui.aiSection)
+    || flatSections.find(item => item.pages.includes(aiPage))
+    || flatSections[0];
+  const sectionPages = activeSection ? activeSection.pages : [];
+  const activePage = sectionPages.includes(aiPage) ? aiPage : (sectionPages[0] || aiPage);
+
   const bubbles = history.map(msg => {
     if (msg.role === 'user') {
       return `<div class="chat-msg user"><div class="chat-bubble">${esc(msg.text)}</div></div>`;
     }
     const point = msg.pointId ? P(msg.pointId) : null;
+    const page = msg.page || (point ? point.page : null);
     return `
     <div class="chat-msg bot">
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
         ${esc(msg.text)}
-        ${point ? `<button class="cite-chip" data-act="open-point" data-id="${point.id}">查看课件第 ${point.page} 页 →</button>` : ''}
+        ${page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
+        ${msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
+        ${msg.source ? `
+          <div class="cite-source">
+            <b>教材原文 · 第 ${msg.source.page} 页</b>
+            <span>${esc(msg.source.section || '')}${msg.source.title ? ' · ' + esc(msg.source.title) : ''}</span>
+            <p>${esc(msg.source.excerpt)}</p>
+          </div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -6673,10 +7319,33 @@ function aiChatView() {
   <div class="page-head">
     <div>
       <h1>AI 问答</h1>
-      <p>回答基于本课程课件，均标注页码可核对；提问会汇总给老师用于讲评</p>
+      <p>回答严格依据教材第一章第四、五节（P13—24），每条回答附教材原文与页码，教材未覆盖会明确说明</p>
     </div>
     <span class="badge ai">课件依据</span>
   </div>
+
+  ${flatSections.length ? `
+  <div class="ai-context">
+    <div class="ai-context-main">
+      <span class="badge ai">关联教材</span>
+      <div><b>${esc(activeSection.section.title)} · 第 ${activePage} 页</b><span>按章节、小节或页码选择，提问优先依据所选教材页</span></div>
+    </div>
+    <div class="ai-context-controls">
+      <div class="ai-chapter-row">
+        ${chapterGroups.map(group => `
+          <button class="chip-btn ${activeSection.chapter.id === group.chapter.id ? 'active' : ''}"
+            data-act="ai-chapter" data-id="${group.chapter.id}">${esc(group.chapter.title)}</button>`).join('')}
+      </div>
+      <div class="ai-section-tabs">
+        ${flatSections.map(item => `
+          <button class="chip-btn ${item.section.id === activeSection.section.id ? 'active' : ''}"
+            data-act="ai-section" data-id="${item.section.id}">${esc(item.section.title)}</button>`).join('')}
+      </div>
+      <select class="input ai-context-select" id="ai-page-select">
+        ${sectionPages.map(page => `<option value="${page}" ${page === activePage ? 'selected' : ''}>第 ${page} 页 · ${esc(pageTitles[page] || '')}</option>`).join('')}
+      </select>
+    </div>
+  </div>` : ''}
 
   <div class="card chat-card">
     <div class="chat-body">
@@ -6684,7 +7353,7 @@ function aiChatView() {
       <div class="chat-welcome">
         <span class="chat-avatar big">AI</span>
         <b>我是这门课的 AI 助教</b>
-        <p>可以问我课件里的概念、公式和例题。我会给出课件页码，方便你核对原文；如果题目卡住，也可以让我给一点提示。</p>
+        <p>我只依据教材第 13—24 页回答，每条结论都会附教材原文和页码；如果教材没有相关内容，我会直接说明，不凭空补充。你可以从当前关联的课件页开始提问。</p>
       </div>`}
     </div>
     <div class="chat-input">
@@ -7580,6 +8249,56 @@ function render() {
 
 /* ---------------- 事件委托 ---------------- */
 
+/* 思维导图缩放：直接改 DOM，避免 render 重建丢失滚动位置 */
+function applyMindmapZoom(newScale) {
+  ui.mmScale = Math.max(0.4, Math.min(3, Number(newScale) || 1));
+  const scroll = document.querySelector('.mindmap-scroll');
+  if (!scroll) return;
+  const stage = scroll.querySelector('.mm-stage');
+  const canvas = scroll.querySelector('.mindmap-canvas');
+  if (!canvas) return;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.style.transform = `scale(${ui.mmScale})`;
+  if (stage) {
+    stage.style.width = Math.ceil(w * ui.mmScale) + 'px';
+    stage.style.height = Math.ceil(h * ui.mmScale) + 'px';
+  }
+  const label = document.querySelector('.mm-zoom-label');
+  if (label) label.textContent = Math.round(ui.mmScale * 100) + '%';
+}
+
+/* Ctrl/⌘ + 滚轮以指针为中心缩放导图；普通滚轮仍用于滚动 */
+document.addEventListener('wheel', event => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  const scroll = event.target.closest('.mindmap-scroll');
+  if (!scroll) return;
+  const canvas = scroll.querySelector('.mindmap-canvas');
+  if (!canvas) return;
+  event.preventDefault();
+  const rect = scroll.getBoundingClientRect();
+  const stage = scroll.querySelector('.mm-stage');
+  const oldScale = Number(ui.mmScale) || 1;
+  const mx = event.clientX - rect.left + scroll.scrollLeft;
+  const my = event.clientY - rect.top + scroll.scrollTop;
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const newScale = Math.max(0.4, Math.min(3, +(oldScale * factor).toFixed(3)));
+  if (newScale === oldScale) return;
+  ui.mmScale = newScale;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.style.transform = `scale(${newScale})`;
+  if (stage) {
+    stage.style.width = Math.ceil(w * newScale) + 'px';
+    stage.style.height = Math.ceil(h * newScale) + 'px';
+  }
+  const ratio = newScale / oldScale;
+  scroll.scrollLeft = mx * ratio - (event.clientX - rect.left);
+  scroll.scrollTop = my * ratio - (event.clientY - rect.top);
+  const label = document.querySelector('.mm-zoom-label');
+  if (label) label.textContent = Math.round(newScale * 100) + '%';
+}, { passive: false });
+
 document.addEventListener('click', event => {
   const target = event.target.closest('[data-act]');
   if (!target) return;
@@ -7676,6 +8395,19 @@ document.addEventListener('click', event => {
       ui.editingNode = null;
       render();
       break;
+    case 'mm-zoom': {
+      const dir = target.dataset.dir;
+      let s = Number(ui.mmScale) || 1;
+      if (dir === 'in') s = Math.min(3, +(s * 1.2).toFixed(3));
+      else if (dir === 'out') s = Math.max(0.4, +(s / 1.2).toFixed(3));
+      else s = 1;
+      applyMindmapZoom(s);
+      if (dir === 'reset') {
+        const sc = document.querySelector('.mindmap-scroll');
+        if (sc) { sc.scrollLeft = 0; sc.scrollTop = 0; }
+      }
+      break;
+    }
     case 'edit-mm-node':
       ui.editingNode = { type: target.dataset.type, id: target.dataset.id };
       render();
@@ -7830,8 +8562,26 @@ document.addEventListener('click', event => {
     case 'ppt-page':
       gotoPptPage(target.dataset.page);
       break;
+    case 'ai-section':
+      setAiSection(target.dataset.id);
+      break;
+    case 'ai-chapter':
+      setAiChapter(target.dataset.id);
+      break;
     case 'open-courseware':
       openCoursewareAt(target.dataset.page);
+      break;
+    case 'teacher-ppt-preview':
+      openTeacherPpt();
+      break;
+    case 'teacher-ppt-page':
+      gotoTeacherPptPage(target.dataset.page);
+      break;
+    case 'close-teacher-ppt':
+      closeTeacherPpt();
+      break;
+    case 'save-point-pages':
+      savePointPages();
       break;
     case 'qa-tab':
       ui.qaTab = target.dataset.tab;
@@ -8006,6 +8756,10 @@ document.addEventListener('keydown', event => {
 
 /* 课件文件选择 */
 document.addEventListener('change', event => {
+  if (event.target.id === 'ai-page-select') {
+    setAiPage(event.target.value);
+    return;
+  }
   if (event.target.id === 'ppt-input') {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
