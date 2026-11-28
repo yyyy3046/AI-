@@ -271,9 +271,13 @@ function pptSlideHtml(pageData, total) {
 }
 
 function coursewareView() {
+  const deck = (typeof slideDeckOf === 'function') ? slideDeckOf() : null;
+  const deckEntry = deck
+    ? `<div class="sd-entry"><button class="btn btn-sm" data-act="open-slide-deck">🖼️ 浏览幻灯片原图 · ${esc(deck.title)}（${deck.count} 页）</button></div>`
+    : '';
   const pages = coursewarePages();
   if (!pages.length) {
-    return '<div class="card-body"><div class="empty"><b>暂无可查看的课件页</b>教师标注知识点后会显示在这里</div></div>';
+    return `<div class="card-body">${deckEntry}<div class="empty"><b>暂无可查看的课件页</b>教师标注知识点后会显示在这里</div></div>`;
   }
   const total = db.courseware.pages || pages[pages.length - 1].page;
   const current = pages.find(item => item.page === Number(ui.pptPage)) || pages[0];
@@ -293,6 +297,7 @@ function coursewareView() {
     </div>
 
     <div class="ppt-main">
+      ${deckEntry}
       <div class="ppt-stage">${pptSlideHtml(current, total)}</div>
       <div class="ppt-nav">
         <button class="btn btn-sm" data-act="ppt-page" data-page="${prev ? prev.page : ''}" ${prev ? '' : 'disabled'}>← 上一页</button>
@@ -972,7 +977,7 @@ function wrongBookView() {
         <div class="q-actions" style="margin:0">
           <button class="btn btn-sm btn-ghost" data-act="select-all-wrong">全选本课程</button>
           <button class="btn btn-sm btn-ghost" data-act="clear-wrong">清空</button>
-          <button class="btn btn-sm btn-primary" data-act="start-redo" ${selected.length ? '' : 'disabled'}>开始重做所选错题</button>
+          <button class="btn btn-sm btn-primary" data-act="start-redo" ${selected.length ? '' : 'disabled'}>开始变式重做（举一反三）</button>
         </div>
       </div>
     </div>
@@ -996,8 +1001,28 @@ function wrongBookView() {
 
   <div class="privacy-note" style="margin-top:12px">
     <span>🧾</span>
-    <div>错题按课程整理；勾选同一门课程的题目后点击「开始重做」，重做只用于订正巩固，不会覆盖原来的作业成绩。</div>
+    <div>错题按课程整理；勾选后点击「开始变式重做」，每道原题会配 2 道同知识点的 AI 变式题举一反三；答对原题才标记「已订正」，变式题不计入订正，也不覆盖原作业成绩。未配置大模型时自动降级为只重做原题。</div>
   </div>`;
+}
+
+/** 重做结果的标准答案块：原题走完整讲题；变式题无 hints，只给标准答案避免崩溃 */
+function redoAnswerBlockHtml(q) {
+  if (q && q.isOriginal === false) {
+    const point = P(q.knowledgeId);
+    const page = point && point.page ? `课件第 ${point.page} 页` : '';
+    if (q.type === 'single') {
+      const letter = String.fromCharCode(65 + q.answer);
+      return `<div class="review-card">
+        <div class="review-head"><b>✅ 标准答案</b>${page ? `<span class="badge outline">${page}</span>` : ''}</div>
+        <div class="review-text"><div class="std-answer"><span class="std-key">${letter}</span><span>${esc(q.options[q.answer])}</span></div></div>
+      </div>`;
+    }
+    return `<div class="review-card">
+      <div class="review-head"><b>✅ 参考答案</b>${page ? `<span class="badge outline">${page}</span>` : ''}</div>
+      <div class="review-text">${esc(q.reference || '')}</div>
+    </div>`;
+  }
+  return answerAndStepsHtml(q);
 }
 
 function redoView() {
@@ -1009,48 +1034,75 @@ function redoView() {
       <div class="q-actions" style="justify-content:center;margin-top:12px"><a class="btn btn-sm" href="#/student/wrong">返回错题本</a></div>
     </div>`;
   }
-  const questions = redo.qids.map(id => Q(id)).filter(Boolean);
+  const questions = (redo.questions || []).filter(Boolean);
+  const origCount = questions.filter(q => q.isOriginal !== false).length;
+  const varCount = questions.length - origCount;
 
   const head = `
   <div class="page-head">
     <div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <a class="btn btn-sm btn-ghost" href="#/student/wrong" data-act="exit-redo">← 返回错题本</a>
-        <span class="badge ai">错题重做</span>
+        <span class="badge ai">错题变式重做</span>
       </div>
-      <h1>${esc(course.name)} · 错题重做</h1>
-      <p>共 ${questions.length} 题 · 重做不会覆盖原成绩，答对后错题本会标记「已订正」</p>
+      <h1>${esc(course.name)} · 错题变式重做</h1>
+      <p>共 ${questions.length} 题（${origCount} 道原题 + ${varCount} 道 AI 变式）· 重做不覆盖原成绩，答对原题后错题本标记「已订正」</p>
     </div>
     ${redo.result ? '<span class="badge success">已提交</span>' : ''}
   </div>`;
 
+  if (redo.generating && !redo.result) {
+    return head + `
+    <div class="empty">
+      <div style="font-size:26px;margin-bottom:8px">🤖</div>
+      <b>AI 正在举一反三…</b>
+      正在为每道错题生成同知识点的变式题，通常需要 10–30 秒，请稍候。
+      <div class="form-hint">若未配置大模型，将自动降级为只重做原题。</div>
+    </div>`;
+  }
+
   if (redo.result) {
-    const percent = Math.round((redo.result.total / redo.result.max) * 100);
+    const rTotal = Number.isFinite(redo.result.total) ? redo.result.total : 0;
+    const rMax = Number.isFinite(redo.result.max) ? redo.result.max : 0;
+    const percent = rMax ? Math.round((rTotal / rMax) * 100) : 0;
+    const origItems = redo.result.items.filter(it => {
+      const q = questions.find(qq => qq.id === it.qid);
+      return q && q.isOriginal !== false;
+    });
+    const origFull = origItems.filter(i => i.score >= i.max).length;
     const detail = questions.map((q, index) => {
       const item = redo.result.items.find(i => i.qid === q.id);
       const full = item && item.score >= item.max;
+      const isVariant = q.isOriginal === false;
+      const badge = isVariant
+        ? `<span class="badge ai">AI 变式</span> <span class="badge ${full ? 'success' : 'danger'}">${full ? '答对' : '答错'}</span>`
+        : `<span class="badge ${full ? 'success' : 'outline'}">${full ? '原题 · 已订正' : '原题'}</span>`;
+      const aiReview = item && item.review
+        ? `<div class="review-card"><div class="review-head"><b>🧠 AI 判分${item.review.usedVision ? '（含照片识别）' : ''}</b><span class="badge ${item.review.usedLLM ? 'ai' : 'outline'}">${item.review.usedLLM ? '大模型' : '本地'}评分</span></div><div class="review-text">${esc(item.review.comment || '')}</div></div>`
+        : '';
       return `
       <div class="q-card">
         <div class="q-head">
           <div>
             <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
-            <div class="q-meta"><span>得分 ${item ? item.score : 0} / ${q.score}</span></div>
+            <div class="q-meta"><span>得分 ${item ? item.score : 0} / ${q.score}</span><span>·</span><span>${esc(P(q.knowledgeId)?.title || '')}</span></div>
           </div>
-          <span class="badge ${full ? 'success' : 'danger'}">${full ? '已订正' : '仍需巩固'}</span>
+          ${badge}
         </div>
         <div class="review-card" style="background:var(--surface-2)"><div class="review-head"><b>我的重做答案</b></div><div class="review-text">${q.type === 'single' ? singleAnswerLineHtml(item ? item.answer : '', q.answer) : answerDisplayHtml(item ? item.answer : '')}</div></div>
-        ${answerAndStepsHtml(q)}
+        ${aiReview}
+        ${redoAnswerBlockHtml(q)}
       </div>`;
     }).join('');
 
     return head + `
     <div class="result-hero">
       <div class="score-ring" style="--p:${percent}">
-        <span><b>${redo.result.total}</b><small>/ ${redo.result.max}</small></span>
+        <span><b>${rTotal}</b><small>/ ${rMax}</small></span>
       </div>
       <div style="flex:1">
-        <div style="font-size:15px;font-weight:600;margin-bottom:4px">错题重做完成</div>
-        <div class="review-text">答对 ${redo.result.items.filter(i => i.score >= i.max).length} / ${redo.result.items.length} 题。答对的错题会标记为「已订正」，不覆盖原来的作业成绩。</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">错题变式重做完成</div>
+        <div class="review-text">原题答对 ${origFull} / ${origItems.length} 题；答对的原题会在错题本标记为「已订正」，不覆盖原作业成绩。变式题仅用于巩固，不计入订正状态。</div>
       </div>
       <div class="q-actions" style="margin:0">
         <a class="btn btn-sm btn-primary" href="#/student/wrong" data-act="exit-redo">返回错题本</a>
@@ -1064,12 +1116,14 @@ function redoView() {
 
   const cards = questions.map((q, index) => {
     const value = redo.answers[q.id];
+    const isVariant = q.isOriginal === false;
+    const dispScore = Number.isFinite(q.score) ? q.score : (q.type === 'single' ? 5 : 10);
     return `
     <div class="q-card" id="q-${q.id}">
       <div class="q-head">
         <div>
-          <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
-          <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>${q.score} 分</span><span>·</span><span>${esc(P(q.knowledgeId)?.title || '')}</span></div>
+          <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)} <span class="badge ${isVariant ? 'ai' : 'brand'}" style="margin-left:6px">${isVariant ? '🔁 AI 变式 · 举一反三' : '📝 原题'}</span></div>
+          <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>${dispScore} 分</span><span>·</span><span>${esc(P(q.knowledgeId)?.title || '')}</span></div>
         </div>
       </div>
       ${q.type === 'single'
@@ -1090,7 +1144,7 @@ function redoView() {
     <div class="card practice-side">
       <div class="card-head"><h2>重做进度</h2><span class="badge">${answeredCount} / ${questions.length}</span></div>
       <div class="card-body">
-        <div class="privacy-note"><span>📌</span><div>重做只用于订正与巩固，不会修改原来的作业成绩。</div></div>
+        <div class="privacy-note"><span>📌</span><div>重做只用于订正与巩固，不修改原作业成绩；变式题不计入订正状态。</div></div>
         <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-redo">提交重做</button>
         <button class="btn btn-ghost btn-block" style="margin-top:8px" data-act="exit-redo">退出重做</button>
       </div>

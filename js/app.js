@@ -481,6 +481,42 @@ document.addEventListener('click', event => {
     case 'close-teacher-ppt':
       closeTeacherPpt();
       break;
+
+    /* 幻灯片原图浏览 */
+    case 'open-slide-deck':
+      ui.slideDeck = { id: target.dataset.id || db.courseId, page: Number(target.dataset.page) || 1 };
+      render();
+      break;
+    case 'close-slide-deck':
+      ui.slideDeck = null;
+      render();
+      break;
+    case 'slide-deck-page': {
+      if (ui.slideDeck) { ui.slideDeck.page = Number(target.dataset.page) || 1; render(); }
+      break;
+    }
+    case 'slide-deck-prev': {
+      if (ui.slideDeck) { ui.slideDeck.page = Math.max(1, (ui.slideDeck.page || 1) - 1); render(); }
+      break;
+    }
+    case 'slide-deck-next': {
+      if (ui.slideDeck) {
+        const d = SLIDE_DECKS[ui.slideDeck.id];
+        const t = d ? d.count : 1;
+        ui.slideDeck.page = Math.min(t, (ui.slideDeck.page || 1) + 1);
+        render();
+      }
+      break;
+    }
+    case 'slide-deck-fullscreen': {
+      const stage = document.getElementById('sd-stage');
+      if (stage) {
+        if (!document.fullscreenElement) stage.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
+      break;
+    }
+
     case 'save-point-pages':
       savePointPages();
       break;

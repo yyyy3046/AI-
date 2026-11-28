@@ -171,6 +171,45 @@ const TITLES = {
   'student/messages': ['私信与问答', '向老师提问，或匿名分享给全班']
 };
 
+/* 幻灯片原图浏览模态层（学生/教师共用），图集见 js/slide-decks.js */
+function slideDeckModal() {
+  if (!ui || !ui.slideDeck) return '';
+  const deck = SLIDE_DECKS[ui.slideDeck.id];
+  if (!deck) return '';
+  const total = deck.count;
+  const page = Math.max(1, Math.min(total, Number(ui.slideDeck.page) || 1));
+  const thumbs = [];
+  for (let n = 1; n <= total; n++) {
+    thumbs.push(`<button class="sd-thumb ${n === page ? 'active' : ''}" data-act="slide-deck-page" data-page="${n}" title="第 ${n} 页">
+      <img src="${esc(slideImgSrc(deck, n))}" alt="第 ${n} 页" loading="lazy"><span>${n}</span>
+    </button>`);
+  }
+  return `
+  <div class="modal-mask sd-mask" data-act="close-slide-deck">
+    <div class="sd-modal" onclick="event.stopPropagation()">
+      <div class="sd-head">
+        <div class="sd-title">
+          <h3>${esc(deck.title)}</h3>
+          <div class="sub">${esc(deck.sub || '')} · 共 ${total} 页</div>
+        </div>
+        <div class="sd-actions">
+          <a class="btn btn-sm" href="${esc(deck.file)}" download>⬇ 下载 PPT</a>
+          <button class="btn btn-sm" data-act="slide-deck-fullscreen">⛶ 全屏</button>
+          <button class="close-btn" data-act="close-slide-deck" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="sd-stage" id="sd-stage">
+        <img class="sd-slide" src="${esc(slideImgSrc(deck, page))}" alt="第 ${page} 页">
+        <button class="sd-nav prev" data-act="slide-deck-prev" aria-label="上一页">‹</button>
+        <button class="sd-nav next" data-act="slide-deck-next" aria-label="下一页">›</button>
+        <div class="sd-counter"><b>${page}</b> / ${total}</div>
+      </div>
+      <div class="sd-thumbs">${thumbs.join('')}</div>
+      <div class="sd-hint">← → 翻页 · 点击缩略图跳转 · 空格下一页 · Esc 关闭</div>
+    </div>
+  </div>`;
+}
+
 function shellView(pageKey, content) {
   const isTeacher = db.session.role === 'teacher';
   const nav = isTeacher ? NAV_TEACHER : NAV_STUDENT;
@@ -264,6 +303,7 @@ function shellView(pageKey, content) {
     ${llmSettingsModal()}
     ${mindmapModal()}
     ${tutorDrawer()}
+    ${slideDeckModal()}
   </div>`;
 }
 

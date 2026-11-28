@@ -570,8 +570,22 @@ function clearWrongSelection() {
   render();
 }
 
-/** 勾选同一门课程的错题后开始重做 */
-function startWrongRedo() {
+/** 为一道原题生成 n 道同知识点的 AI 变式题（举一反三） */
+async function generateVariantsFor(courseId, originalQ, n) {
+  const pointId = originalQ.knowledgeId || '';
+  const difficulty = originalQ.difficulty || '基础';
+  let res;
+  try {
+    res = await generateAiQuestions(courseId, pointId, difficulty, n);
+  } catch (e) {
+    return [];
+  }
+  if (!res || !res.ok || !Array.isArray(res.questions)) return [];
+  return res.questions.map(vq => ({ ...vq, variantOf: originalQ.id, isOriginal: false }));
+}
+
+/** 勾选同一门课程的错题后开始变式重做：每道原题 + AI 生成的同知识点变式题 */
+async function startWrongRedo() {
   const ids = (ui.wrongSelected || []).slice();
   if (!ids.length) {
     toast('请先选择要重做的错题');
@@ -585,11 +599,37 @@ function startWrongRedo() {
   }
   useCourse(db, courseId);
   db.studentClassId = cls.id;
-  ui.redo = { courseId, qids: ids, answers: {}, result: null };
+  const originals = (db.questions || [])
+    .filter(q => ids.includes(q.id))
+    .map(q => ({ ...q, variantOf: null, isOriginal: true }));
+  if (!originals.length) {
+    toast('未找到选中的题目');
+    return;
+  }
+  const answers = {};
+  originals.forEach(q => { answers[q.id] = { text: '', images: [] }; });
+  ui.redo = { courseId, questions: originals.slice(), answers, result: null, generating: true };
   ui.wrongSelected = [];
   ui.drawerPointId = null;
   saveDb();
   location.hash = '#/student/redo';
+  render();
+
+  /* 异步生成变式题：未配置模型或生成失败时优雅降级为只做原题 */
+  let variants = [];
+  if (llmReady()) {
+    toast(`正在为 ${originals.length} 道错题生成 AI 变式题…`);
+    const results = await Promise.all(originals.map(q => generateVariantsFor(courseId, q, 2)));
+    variants = results.flat();
+  } else {
+    toast('未配置大模型，本次仅重做原题（在右上角「模型」配置后可获得举一反三变式题）');
+  }
+  variants.forEach(vq => { answers[vq.id] = { text: '', images: [] }; });
+  ui.redo.questions = originals.concat(variants);
+  ui.redo.answers = answers;
+  ui.redo.generating = false;
+  if (llmReady() && !variants.length) toast('AI 变式题生成失败，已仅保留原题');
+  saveDb();
   render();
 }
 
@@ -616,12 +656,9 @@ function exitRedo() {
 
 async function submitRedo() {
   const redo = ui.redo;
-  if (!redo || redo.result) return;
-  const data = db.courses[redo.courseId];
-  if (!data) return;
-  const questions = redo.qids
-    .map(id => data.questions.find(q => q.id === id))
-    .filter(Boolean);
+  if (!redo || redo.result || redo.generating) return;
+  const questions = Array.isArray(redo.questions) ? redo.questions.filter(Boolean) : [];
+  if (!questions.length) return;
   const missing = questions.filter(q => !answerHasContent(redo.answers[q.id]));
   if (missing.length) {
     toast(`还有 ${missing.length} 道题未作答`);
@@ -630,6 +667,7 @@ async function submitRedo() {
 
   const items = [];
   for (const q of questions) {
+    if (!Number.isFinite(q.score)) q.score = q.type === 'single' ? 5 : 10;
     const value = redo.answers[q.id];
     let score, review = null;
     if (q.type === 'single') {
@@ -1338,14 +1376,23 @@ function splitAiTitle(t) {
   return String(t || '').split(/[·、，,（）()\s\/:：]+/).filter(w => w && w.length >= 2);
 }
 
-// 从问题文本提取关键词：中文 2~8 字连续片段 + 英文单词，去停用词去重
+// 从问题文本提取关键词：中文 2~8 字连续片段 + 英文单词，去停用词去重；
+// 中文片段额外生成 2/3-gram 滑动窗口，避免整句（≤8字）被当成一个长词而无法命中知识点
 function extractAiKeywords(text) {
   const raw = String(text || '').toLowerCase();
   const segs = raw.match(/[\u4e00-\u9fa5]{2,8}|[a-zA-Z][a-zA-Z0-9]*/g) || [];
   const out = [], seen = new Set();
+  const add = s => {
+    if (!s || s.length < 2 || AI_STOPWORDS.has(s) || seen.has(s)) return;
+    seen.add(s); out.push(s);
+  };
   for (const s of segs) {
-    if (AI_STOPWORDS.has(s) || s.length < 2) continue;
-    if (!seen.has(s)) { seen.add(s); out.push(s); }
+    add(s);
+    if (/[\u4e00-\u9fa5]/.test(s)) {
+      for (let n = 2; n <= 3 && n < s.length; n++) {
+        for (let i = 0; i + n <= s.length; i++) add(s.slice(i, i + n));
+      }
+    }
   }
   return out;
 }
@@ -1828,6 +1875,7 @@ function localGradeShort(q, text, images) {
  * 始终返回 { score, comment, steps, usedLLM, usedVision }，失败自动回退本地评分。
  */
 async function gradeShortAnswerLLM(q, text, images) {
+  if (!Number.isFinite(q.score)) q.score = q.type === 'single' ? 5 : 10;
   const point = P(q.knowledgeId);
   const hasImg = Array.isArray(images) && images.length;
   const local = () => localGradeShort(q, text, images);

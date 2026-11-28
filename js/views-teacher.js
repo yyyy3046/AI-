@@ -134,6 +134,7 @@ function studioView() {
       </div>
       <div class="tag-row">
         <button class="btn btn-sm" data-act="teacher-ppt-preview">预览课件</button>
+        ${(typeof slideDeckOf !== 'undefined' && slideDeckOf()) ? '<button class="btn btn-sm" data-act="open-slide-deck">🖼️ 幻灯片原图</button>' : ''}
         <button class="btn btn-sm btn-primary" data-act="save-point-pages">保存页码</button>
       </div>
     </div>

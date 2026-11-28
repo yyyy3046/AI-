@@ -41,6 +41,7 @@ const ui = {
   aiSection: null,
   aiPagePicked: false, // 用户是否主动选过页/小节（默认页不算）
   pptPreviewPage: null,
+  slideDeck: null, // 幻灯片原图浏览：{ id, page }，见 js/slide-decks.js
   aiHomeChat: [],
   aiHomeMode: 'textbook',
   aiHomeQuestionId: null,
@@ -84,6 +85,15 @@ function loadDb() {
             if (a.mode === 'quiz' && !a.duration) a.duration = 10;
           });
         });
+        /* 课程内容版本检测：SUBJECTS 数据更新后，自动刷新本地缓存的课程内容，
+           仅替换 courses（教材/知识点/题目等内容），保留学生答题进度、错题等顶层数据；
+           API Key 存在独立的 localStorage 键，不受影响。 */
+        if (parsed.seedVersion !== SEED_VERSION) {
+          const fresh = buildSeed();
+          parsed.courses = fresh.courses;
+          parsed.seedVersion = SEED_VERSION;
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); } catch (e) { /* ignore */ }
+        }
         useCourse(parsed, parsed.courseId || 'math');
         return parsed;
       }
@@ -146,6 +156,7 @@ function resetDb() {
   ui.aiPage = null;
   ui.aiSection = null;
   ui.pptPreviewPage = null;
+  ui.slideDeck = null;
   ui.wrongCourseId = '';
   ui.wrongSelected = [];
   ui.wrongPointFilter = '';
@@ -461,22 +472,23 @@ const mockAi = {
   gradeShortAnswer(question, answer) {
     const point = P(question.knowledgeId);
     const text = (answer || '').trim();
+    const pageRef = point ? `第 ${point.page} 页「${point.title}」` : '课件相关章节';
     if (!text) {
-      return { score: 0, comment: `未作答。建议翻开第 ${point.page} 页，先写出「${point.title}」的定义与公式，再分步骤作答。${citePoint(point)}` };
+      return { score: 0, comment: `未作答。建议翻开${pageRef}，先写出定义与公式，再分步骤作答。${citePoint(point)}` };
     }
     const hit = (question.keywords || []).filter(k => text.includes(k));
     let score = 4 + hit.length * 4;
     if (text.length >= 60) score += 4;
-    score = Math.min(question.score, score);
+    score = Math.min(question.score || 0, score);
 
     const missing = (question.keywords || []).filter(k => !text.includes(k));
     let comment;
-    if (score >= question.score * 0.85) {
-      comment = `要点覆盖完整，与课件第 ${point.page} 页的表述一致，可以再补充一个具体情境让答案更扎实。`;
-    } else if (score >= question.score * 0.5) {
-      comment = `答案提到了${hit.join('、') || '部分要点'}，但${missing.length ? `缺少对“${missing.join('、')}”的说明，` : ''}建议对照第 ${point.page} 页的原文，按“定义—公式—条件”重新组织。`;
+    if (score >= (question.score || 0) * 0.85) {
+      comment = `要点覆盖完整，与课件${pageRef}的表述一致，可以再补充一个具体情境让答案更扎实。`;
+    } else if (score >= (question.score || 0) * 0.5) {
+      comment = `答案提到了${hit.join('、') || '部分要点'}，但${missing.length ? `缺少对“${missing.join('、')}”的说明，` : ''}建议对照${pageRef}的原文，按“定义—公式—条件”重新组织。`;
     } else {
-      comment = `要点覆盖不足。请回到第 ${point.page} 页「${point.title}」，先抄写核心公式，再用自己的话解释每个符号的含义。`;
+      comment = `要点覆盖不足。请回到${pageRef}，先抄写核心公式，再用自己的话解释每个符号的含义。`;
     }
     return { score, comment: `${comment}\n${citePoint(point)}` };
   },

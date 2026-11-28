@@ -4,6 +4,9 @@
  * ============================================================ */
 
 const STORAGE_KEY = 'zhike-ai-demo:v13';
+/* 课程内容（教材/知识点/题目）的版本号：更新 SUBJECTS 数据后递增此值，
+   loadDb 会检测到变化并自动刷新本地缓存的课程内容，同时保留学生答题进度与错题。 */
+const SEED_VERSION = '2026-11-28-ch2-derivative';
 const SUBJECT_ORDER = ['math', 'physics'];
 const SUBJECTS = window.SUBJECTS;
 
@@ -366,5 +369,6 @@ function buildSeed() {  const seed = {
     });
   });
 
+  seed.seedVersion = SEED_VERSION;
   return seed;
 }
