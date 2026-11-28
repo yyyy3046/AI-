@@ -47,6 +47,10 @@ function learnView() {
 
   const tab = ui.learnTab === 'ppt' ? 'ppt' : (ui.learnTab === 'check' ? 'check' : 'map');
   const pointPages = coursewarePages();
+  const pointCount = db.points.length;
+  const testedCount = testedPoints.size;
+  const coverageRate = pointCount ? Math.min(100, Math.round(testedCount / pointCount * 100)) : 0;
+  const masteryRate = testedCount ? Math.min(100, Math.round(mastered.size / testedCount * 100)) : 0;
 
   return `
   <div class="course-section">
@@ -67,7 +71,7 @@ function learnView() {
     </div>
   </div>` : ''}
 
-  <div class="card">
+  <div class="card learn-main-card">
     <div class="card-head">
       <div>
         <h2>${esc(db.course.name)} · ${tab === 'ppt' ? '课件 PPT' : (tab === 'check' ? '自我检测' : '知识导图')}</h2>
@@ -99,11 +103,42 @@ function learnView() {
         : '点击「章节 → 小节 → 知识点」逐层展开，点击具体知识点可查看<b>公式、参数含义、示例与课件页码</b>。有疑问可以直接向老师提问。'}</div>
   </div>
 
+  ${tab === 'map' ? `
+  <section class="learn-overview" aria-labelledby="learn-overview-title">
+    <div class="learn-overview-head">
+      <div><h2 id="learn-overview-title">学习概览</h2><div class="sub">从知识框架到练习掌握，快速继续下一步</div></div>
+      <span class="learn-overview-course">${esc(db.course.name)}</span>
+    </div>
+    <div class="learn-overview-grid">
+      <button type="button" class="learn-stat is-points" data-act="learn-stat" data-kind="points">
+        <span class="learn-stat-head"><span class="learn-stat-label">课程知识点</span><span class="learn-stat-tag">知识框架</span></span>
+        <span class="learn-stat-value">${pointCount}<small>个知识点</small></span>
+        <span class="learn-stat-desc">共 ${db.mindMap.length} 个章节，按章节与小节逐层展开</span>
+        <span class="learn-stat-link">返回导图浏览 <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="learn-stat is-practice" data-act="learn-stat" data-kind="practice">
+        <span class="learn-stat-head"><span class="learn-stat-label">练习覆盖</span><span class="learn-stat-tag">配套练习</span></span>
+        <span class="learn-stat-value">${testedCount}<small>/ ${pointCount} 个知识点</small></span>
+        <span class="learn-stat-desc">已被课后作业题目覆盖的知识点</span>
+        <span class="learn-stat-progress" role="progressbar" aria-label="练习覆盖率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${coverageRate}"><span style="width:${coverageRate}%"></span></span>
+        <span class="learn-stat-meta"><span>覆盖率</span><b>${coverageRate}%</b></span>
+        <span class="learn-stat-link">去课后作业练习 <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="learn-stat is-mastered" data-act="learn-stat" data-kind="mastered">
+        <span class="learn-stat-head"><span class="learn-stat-label">已掌握</span><span class="learn-stat-tag">作答成果</span></span>
+        <span class="learn-stat-value">${mastered.size}<small>/ ${testedCount} 个知识点</small></span>
+        <span class="learn-stat-desc">单选题取得满分的知识点，与手动检测独立</span>
+        <span class="learn-stat-progress" role="progressbar" aria-label="练习掌握率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${masteryRate}"><span style="width:${masteryRate}%"></span></span>
+        <span class="learn-stat-meta"><span>掌握率</span><b>${masteryRate}%</b></span>
+        <span class="learn-stat-link">去自我检测复盘 <span aria-hidden="true">→</span></span>
+      </button>
+    </div>
+  </section>` : `
   <div class="grid-3">
     <div class="metric"><div class="label">课程知识点</div><div class="value">${db.points.length}</div><div class="delta">共 ${db.mindMap.length} 个章节</div></div>
     <div class="metric"><div class="label">已配套练习</div><div class="value">${testedPoints.size}</div><div class="delta">其余知识点可自主阅读</div></div>
     <div class="metric"><div class="label">已掌握</div><div class="value">${mastered.size}<small>/ ${testedPoints.size}</small></div><div class="delta">客观题全部答对的知识点</div></div>
-  </div>`;
+  </div>`}`;
 }
 
 /* ---------------- 学生 · 知识点自我检测 ---------------- */

@@ -506,6 +506,9 @@ document.addEventListener('click', event => {
     case 'learn-tab':
       switchLearnTab(target.dataset.tab);
       break;
+    case 'learn-stat':
+      openLearnStat(target.dataset.kind);
+      break;
     case 'self-check-set':
       setSelfCheck(target.dataset.point, target.dataset.status);
       break;

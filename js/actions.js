@@ -419,6 +419,31 @@ function switchLearnTab(tab) {
   render();
 }
 
+/** 思维导图学习概览：回到导图、练习或自我检测 */
+function openLearnStat(kind) {
+  const scrollToLearnCard = () => {
+    const tabs = document.querySelector('.learn-tabs');
+    const card = tabs && tabs.closest('.card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  if (kind === 'points') {
+    scrollToLearnCard();
+    return;
+  }
+  if (kind === 'practice') {
+    ui.practiceTab = 'homework';
+    ui.practiceItem = null;
+    location.hash = '#/student/practice';
+    return;
+  }
+  if (kind === 'mastered') {
+    ui.selfCheckFilter = 'all';
+    switchLearnTab('check');
+    requestAnimationFrame(scrollToLearnCard);
+  }
+}
+
 function setSelfCheckFilter(f) {
   ui.selfCheckFilter = f;
   render();
