@@ -45,7 +45,7 @@ function learnView() {
     </button>`;
   }).join('');
 
-  const tab = ui.learnTab === 'ppt' ? 'ppt' : 'map';
+  const tab = ui.learnTab === 'ppt' ? 'ppt' : (ui.learnTab === 'check' ? 'check' : 'map');
   const pointPages = coursewarePages();
 
   return `
@@ -70,32 +70,150 @@ function learnView() {
   <div class="card">
     <div class="card-head">
       <div>
-        <h2>${esc(db.course.name)} · ${tab === 'ppt' ? '课件 PPT' : '知识导图'}</h2>
+        <h2>${esc(db.course.name)} · ${tab === 'ppt' ? '课件 PPT' : (tab === 'check' ? '自我检测' : '知识导图')}</h2>
         <div class="sub">${tab === 'ppt'
           ? `${esc(db.courseware.fileName)} · 共 ${db.courseware.pages} 页 · 已标注 ${pointPages.length} 页知识点`
-          : `课件来源：${esc(db.courseware.fileName)} · 教师已核对`}</div>
+          : tab === 'check'
+            ? '对照整门课的知识框架，逐个标记掌握情况，看清自己哪里还薄弱'
+            : `课件来源：${esc(db.courseware.fileName)} · 教师已核对`}</div>
       </div>
       <div class="tabs learn-tabs">
         <button class="tab ${tab === 'map' ? 'active' : ''}" data-act="learn-tab" data-tab="map">知识导图</button>
+        <button class="tab ${tab === 'check' ? 'active' : ''}" data-act="learn-tab" data-tab="check">自我检测</button>
         <button class="tab ${tab === 'ppt' ? 'active' : ''}" data-act="learn-tab" data-tab="ppt">课件 PPT</button>
       </div>
     </div>
     ${tab === 'map'
       ? `<div class="card-body" style="padding:0">${mindmapView()}</div>`
-      : coursewareView()}
+      : tab === 'check'
+        ? selfCheckView()
+        : coursewareView()}
   </div>
 
   <div class="notice" style="margin-top:16px">
-    <span>${tab === 'ppt' ? '📽️' : '🧭'}</span>
+    <span>${tab === 'ppt' ? '📽️' : (tab === 'check' ? '✅' : '🧭')}</span>
     <div>${tab === 'ppt'
       ? '课件按页码展示，右侧或下方可切换页面；从知识点详情点「查看课件第 X 页」可直接跳到对应页，方便对照原文。'
-      : '点击「章节 → 小节 → 知识点」逐层展开，点击具体知识点可查看<b>公式、参数含义、示例与课件页码</b>。有疑问可以直接向老师提问。'}</div>
+      : tab === 'check'
+        ? '这是<b>你自己的掌握清单</b>：逐个知识点判断「已掌握 / 待复习」，标记只保存在本地，帮你看清复习重点。'
+        : '点击「章节 → 小节 → 知识点」逐层展开，点击具体知识点可查看<b>公式、参数含义、示例与课件页码</b>。有疑问可以直接向老师提问。'}</div>
   </div>
 
   <div class="grid-3">
     <div class="metric"><div class="label">课程知识点</div><div class="value">${db.points.length}</div><div class="delta">共 ${db.mindMap.length} 个章节</div></div>
     <div class="metric"><div class="label">已配套练习</div><div class="value">${testedPoints.size}</div><div class="delta">其余知识点可自主阅读</div></div>
     <div class="metric"><div class="label">已掌握</div><div class="value">${mastered.size}<small>/ ${testedPoints.size}</small></div><div class="delta">客观题全部答对的知识点</div></div>
+  </div>`;
+}
+
+/* ---------------- 学生 · 知识点自我检测 ---------------- */
+
+/** 对照整门课的知识框架，学生逐个标记「已掌握 / 待复习」并查看进度 */
+function selfCheckView() {
+  const map = selfCheckOf(db.courseId);
+  const filter = ui.selfCheckFilter || 'all';
+
+  /* 展开知识框架：章节 → 小节 → 知识点（过滤掉空章节） */
+  const chapters = (db.mindMap || []).map(ch => ({
+    title: ch.title,
+    sections: (ch.sections || []).map(sec => ({
+      title: sec.title,
+      points: (sec.points || []).map(P).filter(Boolean)
+    })).filter(sec => sec.points.length)
+  })).filter(ch => ch.sections.length);
+
+  let total = 0, mastered = 0, review = 0;
+  chapters.forEach(ch => ch.sections.forEach(sec => sec.points.forEach(p => {
+    total++;
+    if (map[p.id] === 'mastered') mastered++;
+    else if (map[p.id] === 'review') review++;
+  })));
+  const unmarked = total - mastered - review;
+  const pct = total ? Math.round(mastered * 100 / total) : 0;
+
+  const passFilter = (p) => {
+    const cur = map[p.id] || '';
+    if (filter === 'mastered') return cur === 'mastered';
+    if (filter === 'review') return cur === 'review';
+    if (filter === 'unmarked') return !cur;
+    return true;
+  };
+
+  const chip = (f, label, count) =>
+    `<button class="chip-btn ${filter === f ? 'active' : ''}" data-act="self-check-filter" data-filter="${f}">${label} <b>${count}</b></button>`;
+
+  const body = chapters.map(ch => {
+    const chPts = ch.sections.reduce((arr, s) => arr.concat(s.points), []);
+    const chTotal = chPts.length;
+    const chMastered = chPts.filter(p => map[p.id] === 'mastered').length;
+    const chPct = chTotal ? Math.round(chMastered * 100 / chTotal) : 0;
+
+    const secHtml = ch.sections.map(sec => {
+      const pts = sec.points.filter(passFilter);
+      if (!pts.length) return '';
+      const rows = pts.map(p => {
+        const cur = map[p.id] || '';
+        return `
+        <div class="sc-row">
+          <div class="sc-point">
+            <span class="sc-dot ${cur || 'none'}"></span>
+            <span class="sc-title">${esc(p.title)}</span>
+            ${p.page ? `<span class="badge">教材 P${p.page}</span>` : ''}
+          </div>
+          <div class="sc-actions">
+            <button class="sc-btn ${cur === 'mastered' ? 'on mastered' : ''}" data-act="self-check-set" data-point="${p.id}" data-status="mastered">已掌握</button>
+            <button class="sc-btn ${cur === 'review' ? 'on review' : ''}" data-act="self-check-set" data-point="${p.id}" data-status="review">待复习</button>
+            <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${p.id}">查看</button>
+          </div>
+        </div>`;
+      }).join('');
+      return `
+      <div class="sc-section">
+        <div class="sc-section-title">${esc(sec.title)}</div>
+        ${rows}
+      </div>`;
+    }).filter(Boolean).join('');
+
+    if (!secHtml) return '';
+    return `
+    <div class="sc-chapter">
+      <div class="sc-chapter-head">
+        <span class="sc-chapter-title">${esc(ch.title)}</span>
+        <div class="sc-progress"><div class="sc-progress-bar" style="width:${chPct}%"></div></div>
+        <span class="sc-chapter-meta">${chMastered}/${chTotal}</span>
+      </div>
+      ${secHtml}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="sc-wrap">
+    <div class="sc-summary">
+      <div class="sc-summary-main">
+        <div class="sc-pct">${pct}<small>%</small></div>
+        <div>
+          <div class="sc-summary-title">自我检测进度</div>
+          <div class="sub">${esc(db.course.name)} · 共 ${total} 个知识点</div>
+        </div>
+      </div>
+      <div class="sc-stats">
+        <span class="sc-stat"><i class="dot mastered"></i><b>${mastered}</b> 已掌握</span>
+        <span class="sc-stat"><i class="dot review"></i><b>${review}</b> 待复习</span>
+        <span class="sc-stat"><i class="dot none"></i><b>${unmarked}</b> 未标记</span>
+      </div>
+    </div>
+
+    <div class="sc-toolbar">
+      <div class="sc-filters">
+        ${chip('all', '全部', total)}
+        ${chip('mastered', '已掌握', mastered)}
+        ${chip('review', '待复习', review)}
+        ${chip('unmarked', '未标记', unmarked)}
+      </div>
+      <button class="btn btn-sm btn-ghost" data-act="self-check-reset">清空记录</button>
+    </div>
+
+    ${body || '<div class="empty">当前筛选下没有知识点</div>'}
   </div>`;
 }
 

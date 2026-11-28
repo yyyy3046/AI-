@@ -33,6 +33,7 @@ const ui = {
   exSelected: [],
   pendingJoin: '',
   learnTab: 'map',
+  selfCheckFilter: 'all',
   pptPage: null,
   aiPage: null,
   aiSection: null,
@@ -62,6 +63,7 @@ function loadDb() {
       if (parsed && parsed.version === 3 && parsed.courses) {
         if (!Array.isArray(parsed.redoRecords)) parsed.redoRecords = [];
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
+        if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
           (data.distributed || []).forEach(d => {
@@ -119,6 +121,7 @@ function resetDb() {
   ui.exRecommendReason = '';
   ui.practiceItem = null;
   ui.learnTab = 'map';
+  ui.selfCheckFilter = 'all';
   ui.pptPage = null;
   ui.aiPage = null;
   ui.aiSection = null;
@@ -284,6 +287,13 @@ function classOfCourseForStudent(courseId) {
   const cls = myClass();
   if (!cls) return null;
   return courseClassIds(courseId).includes(cls.id) ? cls : null;
+}
+
+/** 某门课的学生自我检测结果：{ 知识点id: 'mastered' | 'review' }，未标记的不在其中 */
+function selfCheckOf(courseId) {
+  if (!db.selfCheck) db.selfCheck = {};
+  if (!db.selfCheck[courseId] || typeof db.selfCheck[courseId] !== 'object') db.selfCheck[courseId] = {};
+  return db.selfCheck[courseId];
 }
 
 /* ---------------- 学生错题本 ---------------- */

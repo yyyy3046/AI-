@@ -1254,7 +1254,64 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .chip-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
 .chip-btn.on { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+.chip-btn.active { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); font-weight: 600; }
 .quick-hint { font-size: 11px; color: var(--text-3); }
+
+/* 学生 · 知识点自我检测 */
+.sc-wrap { padding: 4px 2px 2px; }
+.sc-summary {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 14px; padding: 16px 18px; border-radius: 14px; margin-bottom: 14px;
+  background: linear-gradient(135deg, var(--brand-soft, #eef2ff), #fff);
+  border: 1px solid var(--border, #e6e8ef);
+}
+.sc-summary-main { display: flex; align-items: center; gap: 14px; }
+.sc-pct { font-size: 38px; font-weight: 800; color: var(--brand, #4f6bed); line-height: 1; }
+.sc-pct small { font-size: 16px; font-weight: 600; }
+.sc-summary-title { font-size: 16px; font-weight: 700; }
+.sc-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+.sc-stat { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2, #5b6478); }
+.sc-stat b { color: var(--text, #1f2430); font-size: 15px; }
+.sc-stat .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #c9cedb; }
+.sc-stat .dot.mastered { background: #2eb872; }
+.sc-stat .dot.review { background: #f5a623; }
+.sc-stat .dot.none { background: #c9cedb; }
+.sc-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.sc-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.sc-filters .chip-btn b { font-weight: 700; }
+.sc-chapter { border: 1px solid var(--border, #e6e8ef); border-radius: 12px; margin-bottom: 12px; overflow: hidden; background: #fff; }
+.sc-chapter-head {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--surface, #f7f8fc); border-bottom: 1px solid var(--border, #e6e8ef);
+}
+.sc-chapter-title { font-weight: 700; font-size: 14px; }
+.sc-progress { flex: 1; height: 8px; border-radius: 999px; background: #e6e8ef; overflow: hidden; min-width: 80px; }
+.sc-progress-bar { height: 100%; background: linear-gradient(90deg, #4f6bed, #2eb872); transition: width .3s ease; }
+.sc-chapter-meta { font-size: 12px; color: var(--text-2, #5b6478); font-weight: 600; }
+.sc-section { padding: 4px 16px 8px; }
+.sc-section-title { font-size: 13px; font-weight: 600; color: var(--text-2, #5b6478); margin: 10px 0 6px; }
+.sc-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 0; border-bottom: 1px dashed var(--border, #e6e8ef); flex-wrap: wrap;
+}
+.sc-row:last-child { border-bottom: none; }
+.sc-point { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.sc-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #c9cedb; }
+.sc-dot.mastered { background: #2eb872; }
+.sc-dot.review { background: #f5a623; }
+.sc-title { font-size: 14px; }
+.sc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.sc-btn {
+  padding: 4px 12px; font-size: 12px; border-radius: 999px; border: 1px solid var(--border, #d9dde8);
+  background: #fff; color: var(--text-2, #5b6478); cursor: pointer; font-family: inherit; transition: all .15s ease;
+}
+.sc-btn:hover { border-color: var(--brand, #4f6bed); color: var(--brand, #4f6bed); }
+.sc-btn.on.mastered { background: #2eb872; border-color: #2eb872; color: #fff; }
+.sc-btn.on.review { background: #f5a623; border-color: #f5a623; color: #fff; }
+@media (max-width: 640px) {
+  .sc-summary { flex-direction: column; align-items: flex-start; }
+  .sc-chapter-head { flex-wrap: wrap; }
+}
 
 @media (max-width: 900px) {
   .review-top { flex-direction: column; align-items: stretch; }
@@ -2709,7 +2766,8 @@ function buildSeed() {  const seed = {
     submissions: [],
     exerciseSubmissions: [],
     aiQuestions: [],
-    messages: []
+    messages: [],
+    selfCheck: {}
   };
 
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
@@ -2890,6 +2948,7 @@ const ui = {
   exSelected: [],
   pendingJoin: '',
   learnTab: 'map',
+  selfCheckFilter: 'all',
   pptPage: null,
   aiPage: null,
   aiSection: null,
@@ -2919,6 +2978,7 @@ function loadDb() {
       if (parsed && parsed.version === 3 && parsed.courses) {
         if (!Array.isArray(parsed.redoRecords)) parsed.redoRecords = [];
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
+        if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
           (data.distributed || []).forEach(d => {
@@ -2976,6 +3036,7 @@ function resetDb() {
   ui.exRecommendReason = '';
   ui.practiceItem = null;
   ui.learnTab = 'map';
+  ui.selfCheckFilter = 'all';
   ui.pptPage = null;
   ui.aiPage = null;
   ui.aiSection = null;
@@ -3141,6 +3202,13 @@ function classOfCourseForStudent(courseId) {
   const cls = myClass();
   if (!cls) return null;
   return courseClassIds(courseId).includes(cls.id) ? cls : null;
+}
+
+/** 某门课的学生自我检测结果：{ 知识点id: 'mastered' | 'review' }，未标记的不在其中 */
+function selfCheckOf(courseId) {
+  if (!db.selfCheck) db.selfCheck = {};
+  if (!db.selfCheck[courseId] || typeof db.selfCheck[courseId] !== 'object') db.selfCheck[courseId] = {};
+  return db.selfCheck[courseId];
 }
 
 /* ---------------- 学生错题本 ---------------- */
@@ -3724,6 +3792,7 @@ function switchStudentCourse(courseId, silent) {
   ui.wrongPointFilter = '';
   ui.wrongCourseId = courseId;
   ui.pptPage = null;
+  ui.selfCheckFilter = 'all';
   saveDb();
   render();
   if (!silent) toast(`已切换到「${db.course.name}」`);
@@ -3732,8 +3801,29 @@ function switchStudentCourse(courseId, silent) {
 /* ---------------- 学生课件 PPT ---------------- */
 
 function switchLearnTab(tab) {
-  ui.learnTab = tab === 'ppt' ? 'ppt' : 'map';
+  ui.learnTab = tab === 'ppt' ? 'ppt' : (tab === 'check' ? 'check' : 'map');
   render();
+}
+
+function setSelfCheckFilter(f) {
+  ui.selfCheckFilter = f;
+  render();
+}
+
+/** 标记某个知识点的自我检测状态（mastered/review）；再次点同一状态则取消标记 */
+function setSelfCheck(pointId, status) {
+  const map = selfCheckOf(db.courseId);
+  if (map[pointId] === status) delete map[pointId];
+  else map[pointId] = status;
+  saveDb();
+  render();
+}
+
+function resetSelfCheck() {
+  db.selfCheck[db.courseId] = {};
+  saveDb();
+  render();
+  toast('已清空本课程的自我检测记录');
 }
 
 function gotoPptPage(page) {
@@ -7246,7 +7336,7 @@ function learnView() {
     </button>`;
   }).join('');
 
-  const tab = ui.learnTab === 'ppt' ? 'ppt' : 'map';
+  const tab = ui.learnTab === 'ppt' ? 'ppt' : (ui.learnTab === 'check' ? 'check' : 'map');
   const pointPages = coursewarePages();
 
   return `
@@ -7271,32 +7361,150 @@ function learnView() {
   <div class="card">
     <div class="card-head">
       <div>
-        <h2>${esc(db.course.name)} · ${tab === 'ppt' ? '课件 PPT' : '知识导图'}</h2>
+        <h2>${esc(db.course.name)} · ${tab === 'ppt' ? '课件 PPT' : (tab === 'check' ? '自我检测' : '知识导图')}</h2>
         <div class="sub">${tab === 'ppt'
           ? `${esc(db.courseware.fileName)} · 共 ${db.courseware.pages} 页 · 已标注 ${pointPages.length} 页知识点`
-          : `课件来源：${esc(db.courseware.fileName)} · 教师已核对`}</div>
+          : tab === 'check'
+            ? '对照整门课的知识框架，逐个标记掌握情况，看清自己哪里还薄弱'
+            : `课件来源：${esc(db.courseware.fileName)} · 教师已核对`}</div>
       </div>
       <div class="tabs learn-tabs">
         <button class="tab ${tab === 'map' ? 'active' : ''}" data-act="learn-tab" data-tab="map">知识导图</button>
+        <button class="tab ${tab === 'check' ? 'active' : ''}" data-act="learn-tab" data-tab="check">自我检测</button>
         <button class="tab ${tab === 'ppt' ? 'active' : ''}" data-act="learn-tab" data-tab="ppt">课件 PPT</button>
       </div>
     </div>
     ${tab === 'map'
       ? `<div class="card-body" style="padding:0">${mindmapView()}</div>`
-      : coursewareView()}
+      : tab === 'check'
+        ? selfCheckView()
+        : coursewareView()}
   </div>
 
   <div class="notice" style="margin-top:16px">
-    <span>${tab === 'ppt' ? '📽️' : '🧭'}</span>
+    <span>${tab === 'ppt' ? '📽️' : (tab === 'check' ? '✅' : '🧭')}</span>
     <div>${tab === 'ppt'
       ? '课件按页码展示，右侧或下方可切换页面；从知识点详情点「查看课件第 X 页」可直接跳到对应页，方便对照原文。'
-      : '点击「章节 → 小节 → 知识点」逐层展开，点击具体知识点可查看<b>公式、参数含义、示例与课件页码</b>。有疑问可以直接向老师提问。'}</div>
+      : tab === 'check'
+        ? '这是<b>你自己的掌握清单</b>：逐个知识点判断「已掌握 / 待复习」，标记只保存在本地，帮你看清复习重点。'
+        : '点击「章节 → 小节 → 知识点」逐层展开，点击具体知识点可查看<b>公式、参数含义、示例与课件页码</b>。有疑问可以直接向老师提问。'}</div>
   </div>
 
   <div class="grid-3">
     <div class="metric"><div class="label">课程知识点</div><div class="value">${db.points.length}</div><div class="delta">共 ${db.mindMap.length} 个章节</div></div>
     <div class="metric"><div class="label">已配套练习</div><div class="value">${testedPoints.size}</div><div class="delta">其余知识点可自主阅读</div></div>
     <div class="metric"><div class="label">已掌握</div><div class="value">${mastered.size}<small>/ ${testedPoints.size}</small></div><div class="delta">客观题全部答对的知识点</div></div>
+  </div>`;
+}
+
+/* ---------------- 学生 · 知识点自我检测 ---------------- */
+
+/** 对照整门课的知识框架，学生逐个标记「已掌握 / 待复习」并查看进度 */
+function selfCheckView() {
+  const map = selfCheckOf(db.courseId);
+  const filter = ui.selfCheckFilter || 'all';
+
+  /* 展开知识框架：章节 → 小节 → 知识点（过滤掉空章节） */
+  const chapters = (db.mindMap || []).map(ch => ({
+    title: ch.title,
+    sections: (ch.sections || []).map(sec => ({
+      title: sec.title,
+      points: (sec.points || []).map(P).filter(Boolean)
+    })).filter(sec => sec.points.length)
+  })).filter(ch => ch.sections.length);
+
+  let total = 0, mastered = 0, review = 0;
+  chapters.forEach(ch => ch.sections.forEach(sec => sec.points.forEach(p => {
+    total++;
+    if (map[p.id] === 'mastered') mastered++;
+    else if (map[p.id] === 'review') review++;
+  })));
+  const unmarked = total - mastered - review;
+  const pct = total ? Math.round(mastered * 100 / total) : 0;
+
+  const passFilter = (p) => {
+    const cur = map[p.id] || '';
+    if (filter === 'mastered') return cur === 'mastered';
+    if (filter === 'review') return cur === 'review';
+    if (filter === 'unmarked') return !cur;
+    return true;
+  };
+
+  const chip = (f, label, count) =>
+    `<button class="chip-btn ${filter === f ? 'active' : ''}" data-act="self-check-filter" data-filter="${f}">${label} <b>${count}</b></button>`;
+
+  const body = chapters.map(ch => {
+    const chPts = ch.sections.reduce((arr, s) => arr.concat(s.points), []);
+    const chTotal = chPts.length;
+    const chMastered = chPts.filter(p => map[p.id] === 'mastered').length;
+    const chPct = chTotal ? Math.round(chMastered * 100 / chTotal) : 0;
+
+    const secHtml = ch.sections.map(sec => {
+      const pts = sec.points.filter(passFilter);
+      if (!pts.length) return '';
+      const rows = pts.map(p => {
+        const cur = map[p.id] || '';
+        return `
+        <div class="sc-row">
+          <div class="sc-point">
+            <span class="sc-dot ${cur || 'none'}"></span>
+            <span class="sc-title">${esc(p.title)}</span>
+            ${p.page ? `<span class="badge">教材 P${p.page}</span>` : ''}
+          </div>
+          <div class="sc-actions">
+            <button class="sc-btn ${cur === 'mastered' ? 'on mastered' : ''}" data-act="self-check-set" data-point="${p.id}" data-status="mastered">已掌握</button>
+            <button class="sc-btn ${cur === 'review' ? 'on review' : ''}" data-act="self-check-set" data-point="${p.id}" data-status="review">待复习</button>
+            <button class="btn btn-sm btn-ghost" data-act="open-point" data-id="${p.id}">查看</button>
+          </div>
+        </div>`;
+      }).join('');
+      return `
+      <div class="sc-section">
+        <div class="sc-section-title">${esc(sec.title)}</div>
+        ${rows}
+      </div>`;
+    }).filter(Boolean).join('');
+
+    if (!secHtml) return '';
+    return `
+    <div class="sc-chapter">
+      <div class="sc-chapter-head">
+        <span class="sc-chapter-title">${esc(ch.title)}</span>
+        <div class="sc-progress"><div class="sc-progress-bar" style="width:${chPct}%"></div></div>
+        <span class="sc-chapter-meta">${chMastered}/${chTotal}</span>
+      </div>
+      ${secHtml}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="sc-wrap">
+    <div class="sc-summary">
+      <div class="sc-summary-main">
+        <div class="sc-pct">${pct}<small>%</small></div>
+        <div>
+          <div class="sc-summary-title">自我检测进度</div>
+          <div class="sub">${esc(db.course.name)} · 共 ${total} 个知识点</div>
+        </div>
+      </div>
+      <div class="sc-stats">
+        <span class="sc-stat"><i class="dot mastered"></i><b>${mastered}</b> 已掌握</span>
+        <span class="sc-stat"><i class="dot review"></i><b>${review}</b> 待复习</span>
+        <span class="sc-stat"><i class="dot none"></i><b>${unmarked}</b> 未标记</span>
+      </div>
+    </div>
+
+    <div class="sc-toolbar">
+      <div class="sc-filters">
+        ${chip('all', '全部', total)}
+        ${chip('mastered', '已掌握', mastered)}
+        ${chip('review', '待复习', review)}
+        ${chip('unmarked', '未标记', unmarked)}
+      </div>
+      <button class="btn btn-sm btn-ghost" data-act="self-check-reset">清空记录</button>
+    </div>
+
+    ${body || '<div class="empty">当前筛选下没有知识点</div>'}
   </div>`;
 }
 
@@ -8779,6 +8987,15 @@ document.addEventListener('click', event => {
       break;
     case 'learn-tab':
       switchLearnTab(target.dataset.tab);
+      break;
+    case 'self-check-set':
+      setSelfCheck(target.dataset.point, target.dataset.status);
+      break;
+    case 'self-check-filter':
+      setSelfCheckFilter(target.dataset.filter);
+      break;
+    case 'self-check-reset':
+      resetSelfCheck();
       break;
     case 'ppt-page':
       gotoPptPage(target.dataset.page);

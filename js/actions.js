@@ -403,6 +403,7 @@ function switchStudentCourse(courseId, silent) {
   ui.wrongPointFilter = '';
   ui.wrongCourseId = courseId;
   ui.pptPage = null;
+  ui.selfCheckFilter = 'all';
   saveDb();
   render();
   if (!silent) toast(`已切换到「${db.course.name}」`);
@@ -411,8 +412,29 @@ function switchStudentCourse(courseId, silent) {
 /* ---------------- 学生课件 PPT ---------------- */
 
 function switchLearnTab(tab) {
-  ui.learnTab = tab === 'ppt' ? 'ppt' : 'map';
+  ui.learnTab = tab === 'ppt' ? 'ppt' : (tab === 'check' ? 'check' : 'map');
   render();
+}
+
+function setSelfCheckFilter(f) {
+  ui.selfCheckFilter = f;
+  render();
+}
+
+/** 标记某个知识点的自我检测状态（mastered/review）；再次点同一状态则取消标记 */
+function setSelfCheck(pointId, status) {
+  const map = selfCheckOf(db.courseId);
+  if (map[pointId] === status) delete map[pointId];
+  else map[pointId] = status;
+  saveDb();
+  render();
+}
+
+function resetSelfCheck() {
+  db.selfCheck[db.courseId] = {};
+  saveDb();
+  render();
+  toast('已清空本课程的自我检测记录');
 }
 
 function gotoPptPage(page) {

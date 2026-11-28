@@ -418,6 +418,15 @@ document.addEventListener('click', event => {
     case 'learn-tab':
       switchLearnTab(target.dataset.tab);
       break;
+    case 'self-check-set':
+      setSelfCheck(target.dataset.point, target.dataset.status);
+      break;
+    case 'self-check-filter':
+      setSelfCheckFilter(target.dataset.filter);
+      break;
+    case 'self-check-reset':
+      resetSelfCheck();
+      break;
     case 'ppt-page':
       gotoPptPage(target.dataset.page);
       break;

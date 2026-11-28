@@ -223,7 +223,8 @@ function buildSeed() {  const seed = {
     submissions: [],
     exerciseSubmissions: [],
     aiQuestions: [],
-    messages: []
+    messages: [],
+    selfCheck: {}
   };
 
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
