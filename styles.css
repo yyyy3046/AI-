@@ -1704,3 +1704,43 @@ button.practice-item:hover { border-color: #B9C8FF; }
   .radar-chart { max-width: 100%; }
   .radar-label { font-size: 10px; }
 }
+
+/* ============ 手写公式识别（LaTeX）+ 逐步比对 ============ */
+.latex-steps { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.latex-step { display: flex; align-items: flex-start; gap: 8px; background: var(--surface-2); border-radius: 8px; padding: 7px 10px; }
+.latex-idx {
+  flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--brand); color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.latex-code {
+  font-family: "Cambria Math", "Latin Modern Math", Consolas, monospace;
+  font-size: 13px; color: var(--text); background: transparent;
+  white-space: pre-wrap; word-break: break-word;
+}
+.latex-note { margin-left: auto; flex: 0 0 auto; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.latex-final { margin-top: 8px; font-size: 12px; color: var(--text-2); }
+.latex-final .latex-code { color: var(--brand); font-weight: 600; }
+
+.step-compare { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.sc-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1.2fr) minmax(0, 1fr) auto minmax(0, .9fr);
+  gap: 8px; align-items: center; padding: 8px 10px; font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+.sc-row:first-child { border-top: 0; }
+.sc-row.sc-head { background: var(--surface-2); font-weight: 600; color: var(--text-2); }
+.sc-idx { color: var(--text-3); font-weight: 700; text-align: center; }
+.sc-mine { min-width: 0; }
+.sc-expect { min-width: 0; color: var(--text-2); }
+.sc-verdict { white-space: nowrap; }
+.sc-note { color: var(--text-3); font-size: 11px; }
+.sc-empty { color: var(--text-3); }
+.sc-tally { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .sc-row { grid-template-columns: 22px minmax(0, 1fr) auto; grid-auto-rows: auto; }
+  .sc-expect { grid-column: 2 / -1; color: var(--text-3); }
+  .sc-note { grid-column: 2 / -1; }
+  .sc-head .sc-expect, .sc-head .sc-note { display: none; }
+  .latex-note { white-space: normal; }
+}

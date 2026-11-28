@@ -281,7 +281,8 @@ function reviewView() {
             ${generated.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}
           </div>
           <div class="review-text">${esc(generated.comment).replace(/\n/g, '<br>')}</div>
-        </div>` : ''}
+        </div>
+        ${latexReviewHtml(generated)}` : ''}
 
         <div class="divider"></div>
         <div class="grid-2" style="gap:12px">

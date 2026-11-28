@@ -1888,9 +1888,106 @@ function localGradeShort(q, text, images) {
   return { score: review.score, comment: review.comment, steps: review.steps || [], usedLLM: false, usedVision: false };
 }
 
+/* ---------------- 手写公式识别（LaTeX）+ 逐步比对 ---------------- */
+
 /**
- * 真实大模型主观题判分；有照片且配置了视觉模型时走视觉识别 + 判分。
- * 始终返回 { score, comment, steps, usedLLM, usedVision }，失败自动回退本地评分。
+ * 第一步：视觉模型把手写作答逐行转录为 LaTeX，只识别、不判分。
+ * @returns {Promise<{ok:boolean, latex?:{steps:Array<{latex:string,note:string}>, finalAnswer:string, confidence:number}, reason?:string}>}
+ */
+async function recognizeLatexFromImages(images, q) {
+  const hasImg = Array.isArray(images) && images.length;
+  if (!hasImg || !llmVisionReady()) return { ok: false, reason: 'no-vision' };
+  const systemPrompt = `你是数学与物理手写公式识别引擎。请把图片中的学生手写解答逐行转录为 LaTeX。
+【题目】${q ? q.stem : ''}
+【要求】
+1. 只做识别与转录，严禁计算、评判，也不要补全学生没有写的内容。
+2. 按书写顺序逐行输出，每行一个公式或推导步骤。
+3. 上标 ^、下标 _、分式 \\frac{}{}、根号 \\sqrt{}、积分 \\int、极限 \\lim_{...}、求和 \\sum、希腊字母 \\alpha 等。
+4. 无法辨认的符号用 \\square 占位，不要臆造。
+5. note 用不超过 12 个字说明这一行在做什么（如“代入求导公式”）。
+【输出】只返回严格 JSON，不要任何多余文字：
+{"steps":[{"latex":"...","note":"..."}],"finalAnswer":"学生最终答案的 LaTeX，未写则留空","confidence":0到1之间的小数}`;
+  const content = [{ type: 'text', text: '请逐行转录图片中的手写解答为 LaTeX，并按约定返回 JSON。' }];
+  images.forEach(img => content.push({ type: 'image_url', image_url: { url: img } }));
+
+  let res;
+  try {
+    res = await callLLM({
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content }],
+      useVision: true, temperature: 0.1, maxTokens: 900
+    });
+  } catch (e) { return { ok: false, reason: 'network' }; }
+  if (!res.ok) return { ok: false, reason: res.reason, error: res.error };
+
+  const obj = extractJsonObject(res.text);
+  if (!obj || !Array.isArray(obj.steps)) return { ok: false, reason: 'bad-format' };
+  const steps = obj.steps
+    .map(s => ({ latex: String((s && s.latex) || '').trim(), note: String((s && s.note) || '').trim() }))
+    .filter(s => s.latex)
+    .slice(0, 12);
+  if (!steps.length) return { ok: false, reason: 'empty' };
+  return {
+    ok: true,
+    latex: {
+      steps,
+      finalAnswer: String(obj.finalAnswer || '').trim(),
+      confidence: Math.max(0, Math.min(1, Number(obj.confidence) || 0))
+    }
+  };
+}
+
+/**
+ * 第二步：文本模型把识别出的 LaTeX 步骤与标准答案逐步比对并给出分数。
+ * @returns {Promise<{ok:boolean, score?:number, comment?:string, steps?:Array<{student:string,expected:string,verdict:string,note:string}>, reason?:string}>}
+ */
+async function compareStepsWithReference(q, latex, text) {
+  if (!llmReady()) return { ok: false, reason: 'not-configured' };
+  const refText = q.reference || '';
+  const kwText = Array.isArray(q.keywords) && q.keywords.length ? `关键词：${q.keywords.join('、')}` : '';
+  const studentSteps = ((latex && latex.steps) || [])
+    .map((s, i) => `${i + 1}. ${s.latex}${s.note ? `（${s.note}）` : ''}`).join('\n') || '（无）';
+  const systemPrompt = `你是严谨的数学/物理阅卷助教，擅长逐步比对解题过程。
+【满分】${q.score} 分
+【题目】${q.stem}
+【标准答案/要点】${refText}${kwText ? '\n' + kwText : ''}
+【学生手写步骤（已识别为 LaTeX）】
+${studentSteps}
+【学生文字补充】${String(text || '').trim() || '（空）'}
+【任务】
+1. 逐步比对：学生第 i 步对应标准解法的哪一步，判定为 match（数学等价）、partial（部分正确/写法不完整）、wrong（错误）、missing（缺失关键步骤）。
+2. 依据步骤完成度与最终结果给分，满分 ${q.score} 分，给整数。
+3. 评语具体指出错在哪一步、缺了哪一步，不超过 120 字。
+【输出】只返回严格 JSON：
+{"score":0到${q.score}的整数,"comment":"...","steps":[{"student":"学生该步（LaTeX 或简述）","expected":"对应标准步骤","verdict":"match|partial|wrong|missing","note":"差异说明，≤20字"}]}`;
+
+  let res;
+  try {
+    res = await callLLM({
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: '请按要求逐步比对并返回 JSON。' }],
+      temperature: 0.2, maxTokens: 900
+    });
+  } catch (e) { return { ok: false, reason: 'network' }; }
+  if (!res.ok) return { ok: false, reason: res.reason, error: res.error };
+
+  const obj = extractJsonObject(res.text);
+  if (!obj) return { ok: false, reason: 'bad-format' };
+  let score = Number(obj.score);
+  if (!Number.isFinite(score)) return { ok: false, reason: 'bad-score' };
+  score = Math.max(0, Math.min(q.score, Math.round(score)));
+  const verdicts = ['match', 'partial', 'wrong', 'missing'];
+  const steps = Array.isArray(obj.steps) ? obj.steps.map(s => ({
+    student: String((s && s.student) || '').trim(),
+    expected: String((s && s.expected) || '').trim(),
+    verdict: verdicts.includes(s && s.verdict) ? s.verdict : 'partial',
+    note: String((s && s.note) || '').trim()
+  })).slice(0, 12) : [];
+  return { ok: true, score, comment: String(obj.comment || '').trim().slice(0, 300), steps };
+}
+
+/**
+ * 真实大模型主观题判分；有照片且配置了视觉模型时走「LaTeX 识别 + 逐步比对」两阶段，
+ * 任一阶段失败则回退到通用视觉判分或本地评分。
+ * 始终返回 { score, comment, steps, usedLLM, usedVision, latex?, stepCompare? }。
  */
 async function gradeShortAnswerLLM(q, text, images) {
   if (!Number.isFinite(q.score)) q.score = q.type === 'single' ? 5 : 10;
@@ -1899,6 +1996,29 @@ async function gradeShortAnswerLLM(q, text, images) {
   const local = () => localGradeShort(q, text, images);
 
   if (!llmReady() && !(hasImg && llmVisionReady())) return local();
+
+  /* 数理简答题杀手锏：照片 → LaTeX 识别 → 与标准解答逐步比对 */
+  if (hasImg && llmVisionReady()) {
+    const rec = await recognizeLatexFromImages(images, q);
+    if (rec.ok) {
+      const cmp = await compareStepsWithReference(q, rec.latex, text);
+      if (cmp.ok) {
+        return {
+          score: cmp.score,
+          comment: cmp.comment || '',
+          steps: [],
+          usedLLM: true,
+          usedVision: true,
+          latex: rec.latex,
+          stepCompare: cmp.steps
+        };
+      }
+      /* 第二步失败：把识别出的 LaTeX 并入文本，走通用视觉判分兜底 */
+      const recognized = rec.latex.steps.map(s => s.latex).join('\n');
+      const base = String(text || '').trim();
+      text = `${base}${base ? '\n' : ''}[手写识别 LaTeX]\n${recognized}`;
+    }
+  }
 
   const refText = q.reference || '';
   const kwText = Array.isArray(q.keywords) && q.keywords.length ? `关键词：${q.keywords.join('、')}` : '';

@@ -826,7 +826,7 @@ function llmSettingsModal() {
           <input class="input" name="visionBaseUrl" value="${esc(cfg.visionBaseUrl || '')}" placeholder="视觉 API Base URL，留空则使用上方地址">
           <div style="height:8px"></div>
           <input class="input" name="visionModel" value="${esc(cfg.visionModel || '')}" placeholder="视觉模型名，如 qwen-vl-plus、openai/gpt-4o-mini；留空则使用上方模型">
-          <div class="form-hint" style="margin-top:6px">配置后，学生上传手写解题照片时，视觉模型会识别照片内容并参与主观题判分；未配置时只评阅文本框内容（照片仍保存供教师查阅）。API Key 默认与上方共用。</div>
+          <div class="form-hint" style="margin-top:6px">配置后，学生上传手写解题照片时，视觉模型会把手写公式识别为 LaTeX，再与标准解答逐步比对后判分；未配置时只评阅文本框内容（照片仍保存供教师查阅）。API Key 默认与上方共用。</div>
           <div style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="llm-vision-test">测试视觉连接</button></div>
         </div>
       </form>
@@ -963,4 +963,83 @@ function radarChartSvg(items, opts) {
   }).join('');
 
   return `<svg class="radar-chart" viewBox="0 0 ${size} ${size}" width="100%" height="${size}" role="img" aria-label="知识点掌握度雷达图">${gridPolys}${ringLabels}${axes}<polygon points="${dataPts}" class="radar-data" />${dots}${labels}</svg>`;
+}
+
+/* ---------------- 手写公式识别结果 + 逐步比对（学生/教师共用） ---------------- */
+
+const STEP_VERDICT_META = {
+  match: { label: '✓ 等价', cls: 'success' },
+  partial: { label: '≈ 部分', cls: 'warning' },
+  wrong: { label: '✗ 错误', cls: 'danger' },
+  missing: { label: '— 缺失', cls: 'outline' }
+};
+
+/**
+ * 渲染「手写识别 LaTeX + 逐步比对」两张卡片；无相关数据时返回空串。
+ * @param {object} review - 判分结果（含 latex / stepCompare）
+ */
+function latexReviewHtml(review) {
+  if (!review) return '';
+  const latex = review.latex;
+  const cmp = Array.isArray(review.stepCompare) ? review.stepCompare : [];
+  if (!latex && !cmp.length) return '';
+
+  let html = '';
+  if (latex && Array.isArray(latex.steps) && latex.steps.length) {
+    const conf = Number(latex.confidence) || 0;
+    const confCls = conf >= 0.8 ? 'success' : conf >= 0.5 ? 'warning' : 'danger';
+    const rows = latex.steps.map((s, i) => `
+      <div class="latex-step">
+        <span class="latex-idx">${i + 1}</span>
+        <code class="latex-code">${esc(s.latex)}</code>
+        ${s.note ? `<span class="latex-note">${esc(s.note)}</span>` : ''}
+      </div>`).join('');
+    html += `
+    <div class="review-card ai">
+      <div class="review-head">
+        <b>🔍 手写公式识别 · LaTeX</b>
+        ${conf ? `<span class="badge ${confCls}">置信度 ${Math.round(conf * 100)}%</span>` : ''}
+      </div>
+      <div class="latex-steps">${rows}</div>
+      ${latex.finalAnswer ? `<div class="latex-final">最终答案：<code class="latex-code">${esc(latex.finalAnswer)}</code></div>` : ''}
+    </div>`;
+  }
+
+  if (cmp.length) {
+    const tally = { match: 0, partial: 0, wrong: 0, missing: 0 };
+    cmp.forEach(r => { if (tally[r.verdict] !== undefined) tally[r.verdict]++; });
+    const rows = cmp.map((r, i) => {
+      const meta = STEP_VERDICT_META[r.verdict] || STEP_VERDICT_META.partial;
+      return `
+      <div class="sc-row">
+        <span class="sc-idx">${i + 1}</span>
+        <span class="sc-mine">${r.student ? `<code class="latex-code">${esc(r.student)}</code>` : '<span class="sc-empty">（未写）</span>'}</span>
+        <span class="sc-expect">${esc(r.expected || '—')}</span>
+        <span class="sc-verdict"><span class="badge ${meta.cls}">${meta.label}</span></span>
+        <span class="sc-note">${esc(r.note || '')}</span>
+      </div>`;
+    }).join('');
+    const tallyHtml = [
+      `<span class="badge success">等价 ${tally.match}</span>`,
+      `<span class="badge warning">部分 ${tally.partial}</span>`,
+      `<span class="badge danger">错误 ${tally.wrong}</span>`,
+      `<span class="badge outline">缺失 ${tally.missing}</span>`
+    ].join(' ');
+    html += `
+    <div class="review-card">
+      <div class="review-head"><b>🧮 逐步比对</b><span class="sc-tally">${tallyHtml}</span></div>
+      <div class="step-compare">
+        <div class="sc-row sc-head">
+          <span class="sc-idx">#</span>
+          <span class="sc-mine">我的步骤</span>
+          <span class="sc-expect">标准步骤</span>
+          <span class="sc-verdict">判定</span>
+          <span class="sc-note">说明</span>
+        </div>
+        ${rows}
+      </div>
+    </div>`;
+  }
+
+  return html;
 }

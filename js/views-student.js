@@ -631,7 +631,8 @@ function practicePlayView() {
             <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
             <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
             ${point ? `<button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${point.page} 页原文</button>` : ''}
-          </div>` : ''}`;
+          </div>
+          ${latexReviewHtml(review)}` : ''}`;
       }
       return `
       <div class="q-card">
@@ -1078,7 +1079,7 @@ function redoView() {
         ? `<span class="badge ai">AI 变式</span> <span class="badge ${full ? 'success' : 'danger'}">${full ? '答对' : '答错'}</span>`
         : `<span class="badge ${full ? 'success' : 'outline'}">${full ? '原题 · 已订正' : '原题'}</span>`;
       const aiReview = item && item.review
-        ? `<div class="review-card"><div class="review-head"><b>🧠 AI 判分${item.review.usedVision ? '（含照片识别）' : ''}</b><span class="badge ${item.review.usedLLM ? 'ai' : 'outline'}">${item.review.usedLLM ? '大模型' : '本地'}评分</span></div><div class="review-text">${esc(item.review.comment || '')}</div></div>`
+        ? `<div class="review-card"><div class="review-head"><b>🧠 AI 判分${item.review.usedVision ? '（含照片识别）' : ''}</b><span class="badge ${item.review.usedLLM ? 'ai' : 'outline'}">${item.review.usedLLM ? '大模型' : '本地'}评分</span></div><div class="review-text">${esc(item.review.comment || '')}</div></div>${latexReviewHtml(item.review)}`
         : '';
       return `
       <div class="q-card">
@@ -1167,7 +1168,7 @@ function answerImageBarHtml(kind, qid, value, hint) {
       <input type="file" accept="image/*" capture="environment" multiple data-act="answer-file" data-kind="${kind}" data-id="${qid}" ${canAdd ? '' : 'disabled'}>
       📷 拍照 / 上传图片
     </label>
-    <span class="form-hint">${hint || `可上传手写过程照片 · 文字与照片任选其一即可提交 · 最多 ${MAX_ANSWER_IMAGES} 张`}</span>
+    <span class="form-hint">${hint || `可上传手写过程照片 · 数学/物理公式会自动识别为 LaTeX 并逐步比对 · 最多 ${MAX_ANSWER_IMAGES} 张`}</span>
   </div>`;
 }
 
@@ -1376,7 +1377,8 @@ function resultView(assignment, sub) {
           <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
           <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
           <button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${P(q.knowledgeId)?.page} 页原文</button>
-        </div>` : ''}
+        </div>
+        ${latexReviewHtml(review)}` : ''}
 
       ${teacherReview ? `
         <div class="review-card teacher">
