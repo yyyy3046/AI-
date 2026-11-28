@@ -1422,16 +1422,34 @@ function matchPointsByText(text) {
   const rows = [];
   for (const point of db.points) {
     const f = pointMatchFields(point);
+    const title = point.title || '';
+    const tl = title.toLowerCase();
+    const fTitle = f.title.toLowerCase();
+    const fChap = f.chapter.toLowerCase();
+    const fSec = f.section.toLowerCase();
+    const fBody = f.body.toLowerCase();
+    const fForm = f.formula.toLowerCase();
+    const fParam = f.param.toLowerCase();
     let score = 0;
     for (const kw of kws) {
-      if (f.title.includes(kw)) score += 3;
-      if (f.chapter.includes(kw) || f.section.includes(kw)) score += 2;
-      if (f.body.includes(kw)) score += 2;
-      if (f.formula.includes(kw)) score += 1;
-      if (f.param.includes(kw)) score += 1;
+      if (!kw) continue;
+      // 标题开头命中：最强信号 —— 知识点的核心主题就是该术语
+      if (tl.startsWith(kw)) score += 6;
+      if (fTitle.includes(kw)) score += 3;
+      if (fSec.includes(kw)) score += 2;
+      if (fBody.includes(kw)) score += 2;
+      // 章节匹配较泛化，降权避免同章所有知识点得分被拉平
+      if (fChap.includes(kw)) score += 1;
+      if (fForm.includes(kw)) score += 1;
+      if (fParam.includes(kw)) score += 1;
     }
-    for (const w of splitAiTitle(point.title)) {
-      if (low.includes(w.toLowerCase())) score += 2;
+    // 反向命中：把标题切成 2~3 字片段，出现在问题中的加分（增强"导数的定义"命中"导数"）
+    for (let n = 2; n <= 3 && n <= title.length; n++) {
+      for (let i = 0; i + n <= title.length; i++) {
+        const w = title.slice(i, i + n).toLowerCase();
+        if (AI_STOPWORDS.has(w)) continue;
+        if (low.includes(w)) score += 2;
+      }
     }
     for (const sym of f.syms) {
       if (sym && (text || '').includes(sym)) score += 1;

@@ -896,3 +896,68 @@ function tutorDrawer() {
     </div>
   </aside>`;
 }
+
+/* ---------------- 知识点掌握度雷达图（纯 SVG，零依赖） ---------------- */
+
+/**
+ * 纯 SVG 雷达图：呈现各知识点掌握度强弱，一眼看出薄弱环节。
+ * @param {Array<{title:string, rate:number}>} items - rate 为 0-100 的掌握率
+ * @param {{size?:number}} [opts]
+ * @returns {string} SVG 字符串；知识点不足 3 个时返回空串（调用方自行回退到条形列表）
+ */
+function radarChartSvg(items, opts) {
+  opts = opts || {};
+  const size = opts.size || 320;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - 56; // 外圈留给标签
+  const n = (items || []).length;
+  if (n < 3) return '';
+
+  const clamp = v => Math.max(0, Math.min(100, Number(v) || 0));
+  const angle = i => (Math.PI * 2 * i) / n - Math.PI / 2; // 从正上方起顺时针
+  const pt = (i, ratio) => {
+    const a = angle(i);
+    return [cx + Math.cos(a) * radius * ratio, cy + Math.sin(a) * radius * ratio];
+  };
+  const fmt = v => (Math.round(v * 10) / 10).toFixed(1);
+
+  const rings = [20, 40, 60, 80, 100];
+  const gridPolys = rings.map(r => {
+    const pts = items.map((_, i) => {
+      const [x, y] = pt(i, r / 100);
+      return `${fmt(x)},${fmt(y)}`;
+    }).join(' ');
+    return `<polygon points="${pts}" class="radar-grid" />`;
+  }).join('');
+
+  const ringLabels = rings.map(r => {
+    const y = cy - radius * (r / 100);
+    return `<text x="${fmt(cx - 6)}" y="${fmt(y + 3)}" text-anchor="end" class="radar-ring-label">${r}</text>`;
+  }).join('');
+
+  const axes = items.map((_, i) => {
+    const [x, y] = pt(i, 1);
+    return `<line x1="${fmt(cx)}" y1="${fmt(cy)}" x2="${fmt(x)}" y2="${fmt(y)}" class="radar-axis" />`;
+  }).join('');
+
+  const dataPts = items.map((it, i) => {
+    const [x, y] = pt(i, clamp(it.rate) / 100);
+    return `${fmt(x)},${fmt(y)}`;
+  }).join(' ');
+
+  const dots = items.map((it, i) => {
+    const [x, y] = pt(i, clamp(it.rate) / 100);
+    const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
+    return `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="3.5" class="radar-dot ${tone}" />`;
+  }).join('');
+
+  const labels = items.map((it, i) => {
+    const [x, y] = pt(i, 1.22);
+    const anchor = Math.abs(x - cx) < 5 ? 'middle' : (x > cx ? 'start' : 'end');
+    const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
+    return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label ${tone}">${esc(it.title)} · ${clamp(it.rate)}%</text>`;
+  }).join('');
+
+  return `<svg class="radar-chart" viewBox="0 0 ${size} ${size}" width="100%" height="${size}" role="img" aria-label="知识点掌握度雷达图">${gridPolys}${ringLabels}${axes}<polygon points="${dataPts}" class="radar-data" />${dots}${labels}</svg>`;
+}

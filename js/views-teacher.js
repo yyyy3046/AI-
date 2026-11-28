@@ -600,6 +600,27 @@ function analyticsView() {
       </div>`;
   }).join('');
 
+  const weakCount = data.mastery.filter(r => r.rate < 50).length;
+  const midCount = data.mastery.filter(r => r.rate >= 50 && r.rate < 75).length;
+  const strongCount = data.mastery.filter(r => r.rate >= 75).length;
+  let masteryCardBody;
+  if (!data.mastery.length) {
+    masteryCardBody = '<div class="empty">暂无作答数据</div>';
+  } else if (data.mastery.length >= 3) {
+    masteryCardBody = `
+      <div class="radar-wrap">${radarChartSvg(data.mastery)}</div>
+      <div class="radar-legend">
+        <span class="lg weak"><i></i>薄弱 ${weakCount}</span>
+        <span class="lg mid"><i></i>待巩固 ${midCount}</span>
+        <span class="lg strong"><i></i>扎实 ${strongCount}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="radar-bars-title">各知识点掌握率明细</div>
+      ${masteryHtml}`;
+  } else {
+    masteryCardBody = masteryHtml;
+  }
+
   const errorHtml = data.errors.map(e => `
     <div class="error-row">
       <div>
@@ -714,7 +735,7 @@ function analyticsView() {
         <div><h2>知识点掌握度</h2><div class="sub">按已作答的客观题统计</div></div>
         <span class="badge">${data.mastery.length} 个知识点</span>
       </div>
-      <div class="card-body">${masteryHtml || '<div class="empty">暂无作答数据</div>'}</div>
+      <div class="card-body">${masteryCardBody}</div>
     </div>
 
     <div class="card">
@@ -1278,6 +1299,19 @@ function analyticsData() {
     rate: Math.round((v.correct / v.total) * 100)
   })).sort((a, b) => a.rate - b.rate);
 
+  /* 雷达图覆盖课程全部知识点：有作答的取实测掌握率，未测的标记 tested:false（不臆造 0%） */
+  const pointIds = [...new Set((db.questions || []).map(q => q.knowledgeId).filter(Boolean))];
+  const radarItems = pointIds.map(kid => {
+    const m = masteryMap[kid];
+    const title = P(kid)?.title || kid;
+    return m
+      ? { title, rate: Math.round((m.correct / m.total) * 100), tested: true }
+      : { title, rate: 0, tested: false };
+  }).sort((a, b) => {
+    if (a.tested !== b.tested) return a.tested ? -1 : 1;
+    return a.rate - b.rate;
+  });
+
   const errors = Object.entries(errorMap)
     .map(([qid, count]) => {
       const q = Q(qid);
@@ -1344,6 +1378,7 @@ function analyticsData() {
     objectiveCount,
     pendingReview,
     mastery,
+    radarItems,
     errors,
     wrongPoints,
     recent

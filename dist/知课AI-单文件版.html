@@ -1679,12 +1679,40 @@ button.practice-item:hover { border-color: #B9C8FF; }
 .switch input:checked + .slider { background: var(--brand); }
 .switch input:checked + .slider::before { transform: translateX(18px); }
 
+/* ============ 知识点掌握度雷达图 ============ */
+.radar-wrap { display: flex; justify-content: center; margin: -4px 0 6px; }
+.radar-chart { display: block; max-width: 380px; margin: 0 auto; overflow: visible; }
+.radar-grid { fill: none; stroke: var(--border); stroke-width: 1; }
+.radar-axis { stroke: var(--border); stroke-width: 1; }
+.radar-data { fill: rgba(49, 94, 251, .18); stroke: var(--brand); stroke-width: 2; }
+.radar-dot { stroke: #fff; stroke-width: 1.5; }
+.radar-dot.strong { fill: var(--success); }
+.radar-dot.mid { fill: var(--warning); }
+.radar-dot.weak { fill: var(--danger); }
+.radar-label { font-size: 11px; font-weight: 600; fill: var(--text-2); }
+.radar-label.strong { fill: var(--success); }
+.radar-label.mid { fill: var(--warning); }
+.radar-label.weak { fill: var(--danger); }
+.radar-ring-label { font-size: 9px; fill: var(--text-3); }
+
+.radar-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin: 2px 0 4px; font-size: 12px; color: var(--text-2); }
+.radar-legend .lg { display: inline-flex; align-items: center; gap: 5px; }
+.radar-legend .lg i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.radar-legend .lg.weak i { background: var(--danger); }
+.radar-legend .lg.mid i { background: var(--warning); }
+.radar-legend .lg.strong i { background: var(--success); }
+.radar-bars-title { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 2px 0 10px; }
+
+@media (max-width: 520px) {
+  .radar-chart { max-width: 100%; }
+  .radar-label { font-size: 10px; }
+}
+
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-/* ===== js/data-math.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
 /* 高等数学：内容按用户提供的教材扫描件（第一章 第13—24页）整理 */
@@ -2443,7 +2471,6 @@ window.SUBJECTS.math = {
 
 </script>
 <script>
-/* ===== js/data-physics.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
 /* 大学物理：内容按用户提供的教材扫描件（第六章 静电场，教材 P133—173）整理 */
@@ -2912,7 +2939,6 @@ window.SUBJECTS.physics = {
 
 </script>
 <script>
-/* ===== js/data.js ===== */
 /* ============================================================
  * 知课 AI · 课程与知识库数据核心
  * 支持两门课程：高等数学 / 大学物理
@@ -3290,7 +3316,6 @@ function buildSeed() {  const seed = {
 
 </script>
 <script>
-/* ===== js/store.js ===== */
 /* ============================================================
  * 状态管理、本地持久化、AI 服务
  * ============================================================ */
@@ -3998,7 +4023,6 @@ function esc(value) {
 
 </script>
 <script>
-/* ===== js/slide-decks.js ===== */
 /* ============================================================
  * 幻灯片原图浏览：静态课件图集注册表
  * 不写入 localStorage，因此即便本地是旧演示数据也能看到新课件。
@@ -4068,7 +4092,6 @@ document.addEventListener('keydown', e => {
 
 </script>
 <script>
-/* ===== js/actions.js ===== */
 /* ============================================================
  * 业务动作：登录、课件生成、发布、作答、批改、问答
  * ============================================================ */
@@ -5493,16 +5516,34 @@ function matchPointsByText(text) {
   const rows = [];
   for (const point of db.points) {
     const f = pointMatchFields(point);
+    const title = point.title || '';
+    const tl = title.toLowerCase();
+    const fTitle = f.title.toLowerCase();
+    const fChap = f.chapter.toLowerCase();
+    const fSec = f.section.toLowerCase();
+    const fBody = f.body.toLowerCase();
+    const fForm = f.formula.toLowerCase();
+    const fParam = f.param.toLowerCase();
     let score = 0;
     for (const kw of kws) {
-      if (f.title.includes(kw)) score += 3;
-      if (f.chapter.includes(kw) || f.section.includes(kw)) score += 2;
-      if (f.body.includes(kw)) score += 2;
-      if (f.formula.includes(kw)) score += 1;
-      if (f.param.includes(kw)) score += 1;
+      if (!kw) continue;
+      // 标题开头命中：最强信号 —— 知识点的核心主题就是该术语
+      if (tl.startsWith(kw)) score += 6;
+      if (fTitle.includes(kw)) score += 3;
+      if (fSec.includes(kw)) score += 2;
+      if (fBody.includes(kw)) score += 2;
+      // 章节匹配较泛化，降权避免同章所有知识点得分被拉平
+      if (fChap.includes(kw)) score += 1;
+      if (fForm.includes(kw)) score += 1;
+      if (fParam.includes(kw)) score += 1;
     }
-    for (const w of splitAiTitle(point.title)) {
-      if (low.includes(w.toLowerCase())) score += 2;
+    // 反向命中：把标题切成 2~3 字片段，出现在问题中的加分（增强"导数的定义"命中"导数"）
+    for (let n = 2; n <= 3 && n <= title.length; n++) {
+      for (let i = 0; i + n <= title.length; i++) {
+        const w = title.slice(i, i + n).toLowerCase();
+        if (AI_STOPWORDS.has(w)) continue;
+        if (low.includes(w)) score += 2;
+      }
     }
     for (const sym of f.syms) {
       if (sym && (text || '').includes(sym)) score += 1;
@@ -6620,7 +6661,6 @@ async function testLlmConnection() {
 
 </script>
 <script>
-/* ===== js/views-common.js ===== */
 /* ============================================================
  * 公共视图：登录、应用骨架、思维导图、抽屉、弹窗
  * ============================================================ */
@@ -7520,9 +7560,73 @@ function tutorDrawer() {
   </aside>`;
 }
 
+/* ---------------- 知识点掌握度雷达图（纯 SVG，零依赖） ---------------- */
+
+/**
+ * 纯 SVG 雷达图：呈现各知识点掌握度强弱，一眼看出薄弱环节。
+ * @param {Array<{title:string, rate:number}>} items - rate 为 0-100 的掌握率
+ * @param {{size?:number}} [opts]
+ * @returns {string} SVG 字符串；知识点不足 3 个时返回空串（调用方自行回退到条形列表）
+ */
+function radarChartSvg(items, opts) {
+  opts = opts || {};
+  const size = opts.size || 320;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - 56; // 外圈留给标签
+  const n = (items || []).length;
+  if (n < 3) return '';
+
+  const clamp = v => Math.max(0, Math.min(100, Number(v) || 0));
+  const angle = i => (Math.PI * 2 * i) / n - Math.PI / 2; // 从正上方起顺时针
+  const pt = (i, ratio) => {
+    const a = angle(i);
+    return [cx + Math.cos(a) * radius * ratio, cy + Math.sin(a) * radius * ratio];
+  };
+  const fmt = v => (Math.round(v * 10) / 10).toFixed(1);
+
+  const rings = [20, 40, 60, 80, 100];
+  const gridPolys = rings.map(r => {
+    const pts = items.map((_, i) => {
+      const [x, y] = pt(i, r / 100);
+      return `${fmt(x)},${fmt(y)}`;
+    }).join(' ');
+    return `<polygon points="${pts}" class="radar-grid" />`;
+  }).join('');
+
+  const ringLabels = rings.map(r => {
+    const y = cy - radius * (r / 100);
+    return `<text x="${fmt(cx - 6)}" y="${fmt(y + 3)}" text-anchor="end" class="radar-ring-label">${r}</text>`;
+  }).join('');
+
+  const axes = items.map((_, i) => {
+    const [x, y] = pt(i, 1);
+    return `<line x1="${fmt(cx)}" y1="${fmt(cy)}" x2="${fmt(x)}" y2="${fmt(y)}" class="radar-axis" />`;
+  }).join('');
+
+  const dataPts = items.map((it, i) => {
+    const [x, y] = pt(i, clamp(it.rate) / 100);
+    return `${fmt(x)},${fmt(y)}`;
+  }).join(' ');
+
+  const dots = items.map((it, i) => {
+    const [x, y] = pt(i, clamp(it.rate) / 100);
+    const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
+    return `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="3.5" class="radar-dot ${tone}" />`;
+  }).join('');
+
+  const labels = items.map((it, i) => {
+    const [x, y] = pt(i, 1.22);
+    const anchor = Math.abs(x - cx) < 5 ? 'middle' : (x > cx ? 'start' : 'end');
+    const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
+    return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label ${tone}">${esc(it.title)} · ${clamp(it.rate)}%</text>`;
+  }).join('');
+
+  return `<svg class="radar-chart" viewBox="0 0 ${size} ${size}" width="100%" height="${size}" role="img" aria-label="知识点掌握度雷达图">${gridPolys}${ringLabels}${axes}<polygon points="${dataPts}" class="radar-data" />${dots}${labels}</svg>`;
+}
+
 </script>
 <script>
-/* ===== js/views-teacher.js ===== */
 /* ============================================================
  * 教师端页面
  * ============================================================ */
@@ -8125,6 +8229,27 @@ function analyticsView() {
       </div>`;
   }).join('');
 
+  const weakCount = data.mastery.filter(r => r.rate < 50).length;
+  const midCount = data.mastery.filter(r => r.rate >= 50 && r.rate < 75).length;
+  const strongCount = data.mastery.filter(r => r.rate >= 75).length;
+  let masteryCardBody;
+  if (!data.mastery.length) {
+    masteryCardBody = '<div class="empty">暂无作答数据</div>';
+  } else if (data.mastery.length >= 3) {
+    masteryCardBody = `
+      <div class="radar-wrap">${radarChartSvg(data.mastery)}</div>
+      <div class="radar-legend">
+        <span class="lg weak"><i></i>薄弱 ${weakCount}</span>
+        <span class="lg mid"><i></i>待巩固 ${midCount}</span>
+        <span class="lg strong"><i></i>扎实 ${strongCount}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="radar-bars-title">各知识点掌握率明细</div>
+      ${masteryHtml}`;
+  } else {
+    masteryCardBody = masteryHtml;
+  }
+
   const errorHtml = data.errors.map(e => `
     <div class="error-row">
       <div>
@@ -8239,7 +8364,7 @@ function analyticsView() {
         <div><h2>知识点掌握度</h2><div class="sub">按已作答的客观题统计</div></div>
         <span class="badge">${data.mastery.length} 个知识点</span>
       </div>
-      <div class="card-body">${masteryHtml || '<div class="empty">暂无作答数据</div>'}</div>
+      <div class="card-body">${masteryCardBody}</div>
     </div>
 
     <div class="card">
@@ -8877,7 +9002,6 @@ function analyticsData() {
 
 </script>
 <script>
-/* ===== js/views-student.js ===== */
 /* ============================================================
  * 学生端页面
  * ============================================================ */
@@ -10448,7 +10572,6 @@ function messageCard(m, asPublic) {
 
 </script>
 <script>
-/* ===== js/app.js ===== */
 /* ============================================================
  * 路由、渲染、事件绑定
  * ============================================================ */
