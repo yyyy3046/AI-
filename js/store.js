@@ -54,7 +54,9 @@ const ui = {
   wrongPointFilter: '',
   redo: null,
   exTargets: null,
-  reviewPointId: null
+  reviewPointId: null,
+  llmSettingsOpen: false,
+  llmPending: false
 };
 
 function loadDb() {
@@ -473,6 +475,105 @@ const mockAi = {
     };
   }
 };
+
+/* ============================================================
+ * 大模型接入（OpenAI 兼容接口，前端直连，Key 仅存本机）
+ * ============================================================ */
+
+const LLM_STORAGE_KEY = 'zhike_llm_config';
+
+/* 预设：均已验证支持浏览器 CORS 直连 */
+const LLM_PRESETS = {
+  agnes:       { label: 'Agnes AI（免费）', baseUrl: 'https://apihub.agnes-ai.com/v1', model: 'agnes-2.0-flash' },
+  deepseek:    { label: 'DeepSeek',          baseUrl: 'https://api.deepseek.com/v1',    model: 'deepseek-chat' },
+  siliconflow: { label: '硅基流动',           baseUrl: 'https://api.siliconflow.cn/v1',  model: 'Qwen/Qwen2.5-7B-Instruct' },
+  openrouter:  { label: 'OpenRouter',         baseUrl: 'https://openrouter.ai/api/v1',   model: 'openai/gpt-4o-mini' },
+  dashscope:   { label: '通义千问',           baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  custom:      { label: '自定义',             baseUrl: '', model: '' }
+};
+
+let llmConfig = loadLlmConfig();
+
+function loadLlmConfig() {
+  try {
+    const raw = localStorage.getItem(LLM_STORAGE_KEY);
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && typeof c === 'object') {
+        return {
+          enabled: c.enabled !== false,
+          baseUrl: (c.baseUrl || LLM_PRESETS.agnes.baseUrl).replace(/\/+$/, ''),
+          model: c.model || LLM_PRESETS.agnes.model,
+          apiKey: c.apiKey || ''
+        };
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return { enabled: true, baseUrl: LLM_PRESETS.agnes.baseUrl, model: LLM_PRESETS.agnes.model, apiKey: '' };
+}
+
+function saveLlmConfig(cfg) {
+  llmConfig = {
+    enabled: cfg.enabled !== false,
+    baseUrl: String(cfg.baseUrl || '').trim().replace(/\/+$/, ''),
+    model: String(cfg.model || '').trim(),
+    apiKey: cfg.apiKey || ''
+  };
+  try { localStorage.setItem(LLM_STORAGE_KEY, JSON.stringify(llmConfig)); } catch (e) { /* ignore */ }
+}
+
+function clearLlmConfig() {
+  try { localStorage.removeItem(LLM_STORAGE_KEY); } catch (e) { /* ignore */ }
+  llmConfig = loadLlmConfig();
+}
+
+/** 是否已配置可用（启用 + 有 Key + 有地址和模型） */
+function llmReady() {
+  return !!(llmConfig.enabled && llmConfig.apiKey && llmConfig.baseUrl && llmConfig.model);
+}
+
+/**
+ * 调用大模型（OpenAI 兼容 /chat/completions）。
+ * @returns {Promise<{ok:boolean,text?:string,reason?:string,error?:string}>}
+ */
+async function callLLM(opts) {
+  if (!llmReady()) return { ok: false, reason: 'not-configured' };
+  const { messages, temperature = 0.5, maxTokens = 900, signal } = opts || {};
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 40000);
+  if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
+  try {
+    const resp = await fetch(`${llmConfig.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${llmConfig.apiKey}`
+      },
+      body: JSON.stringify({
+        model: llmConfig.model,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      let detail = '';
+      try { detail = (await resp.text()).slice(0, 220); } catch (e) { /* ignore */ }
+      return { ok: false, reason: `http-${resp.status}`, error: detail || resp.statusText };
+    }
+    const data = await resp.json();
+    const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (text == null) return { ok: false, reason: 'empty', error: JSON.stringify(data).slice(0, 220) };
+    return { ok: true, text: String(text) };
+  } catch (e) {
+    clearTimeout(timer);
+    const aborted = e && (e.name === 'AbortError' || (e.message && /abort/i.test(e.message)));
+    return { ok: false, reason: aborted ? 'timeout' : 'network', error: String((e && e.message) || e) };
+  }
+}
 
 /* ---------------- 提示 ---------------- */
 

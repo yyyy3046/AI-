@@ -261,7 +261,7 @@ function reviewView() {
         <div class="q-meta"><span>单选题 · ${objQ.score} 分</span><span>·</span><span>得分 ${objScore}</span></div>
         <div class="review-card">
           <div class="review-head"><b>客观题自动判分</b><span class="badge ${objScore === objQ.score ? 'success' : 'danger'}">${objScore === objQ.score ? '回答正确' : '回答错误'}</span></div>
-          <div class="review-text">学生答案：${esc(objQ.options[active.answers[objQ.id]] || '未作答')}<br>正确答案：${esc(objQ.options[objQ.answer])}</div>
+          <div class="review-text">学生答案：${esc(objQ.options[Number(answerText(active.answers[objQ.id]))] || '未作答')}<br>正确答案：${esc(objQ.options[objQ.answer])}${answerImages(active.answers[objQ.id]).length ? `<br>附 ${answerImages(active.answers[objQ.id]).length} 张解题过程照片：<div class="ans-imgs" style="margin-top:6px">${answerImages(active.answers[objQ.id]).map((src, i) => `<span class="ans-thumb-wrap"><img class="ans-thumb" src="${src}" alt="作答图片" data-act="preview-image" data-src="${src}"><span class="ans-thumb-idx">${i + 1}</span></span>`).join('')}</div>` : ''}</div>
         </div>` : ''}
 
         ${shortQ ? `
@@ -528,13 +528,14 @@ function liveView() {
     const subs = subsAll.filter(s => s.assignmentId === a.id);
     const rows = a.questionIds.map((qid, index) => {
       const q = Q(qid);
-      const values = subs.map(s => s.answers[qid]).filter(v => v !== undefined && v !== null && v !== '');
+      const values = subs.map(s => s.answers[qid]).filter(v => answerHasContent(v));
       const total = values.length;
+      const withPhoto = values.filter(v => answerImages(v).length).length;
       const letter = q.type === 'single' ? String.fromCharCode(65 + q.answer) : '—';
-      const correct = q.type === 'single' ? values.filter(v => v === q.answer).length : 0;
+      const correct = q.type === 'single' ? values.filter(v => Number(answerText(v)) === q.answer).length : 0;
       const rate = total ? Math.round((correct / total) * 100) : 0;
       const dist = q.type === 'single' ? q.options.map((opt, i) => {
-        const n = values.filter(v => v === i).length;
+        const n = values.filter(v => Number(answerText(v)) === i).length;
         const pct = total ? Math.round((n / total) * 100) : 0;
         return `<div class="dist-row">
           <span class="dist-key ${i === q.answer ? 'ok' : ''}">${String.fromCharCode(65 + i)}</span>
@@ -552,7 +553,7 @@ function liveView() {
               <span>${total} 人作答</span><span>·</span>
               <span>答对 ${correct} 人</span><span>·</span>
               <span>正确答案 ${letter}</span><span>·</span>
-              <span>课件第 ${P(q.knowledgeId)?.page} 页</span>
+              <span>课件第 ${P(q.knowledgeId)?.page} 页</span>${withPhoto ? `<span>·</span><span>📷 附照片 ${withPhoto} 人</span>` : ''}
             </div>
           </div>
           <div class="live-rate ${rate >= 60 ? 'ok' : 'low'}"><b>${rate}%</b><small>正答率</small></div>

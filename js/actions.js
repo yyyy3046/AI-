@@ -592,7 +592,10 @@ function startWrongRedo() {
 
 function setRedoOption(qid, index) {
   if (!ui.redo || ui.redo.result) return;
-  ui.redo.answers[qid] = index;
+  const cur = ui.redo.answers[qid];
+  ui.redo.answers[qid] = (cur && typeof cur === 'object')
+    ? { text: String(index), images: cur.images || [] }
+    : { text: String(index), images: [] };
   render();
 }
 
@@ -625,7 +628,7 @@ function submitRedo() {
   const items = questions.map(q => {
     const value = redo.answers[q.id];
     let score;
-    if (q.type === 'single') score = Number(value) === q.answer ? q.score : 0;
+    if (q.type === 'single') { const t = answerText(value).trim(); score = (t !== '' && Number(t) === q.answer) ? q.score : 0; }
     else {
       const text = answerText(value);
       const imgs = answerImages(value);
@@ -1339,6 +1342,7 @@ function aiHomeReply(text, page) {
       pointId: point.id,
       page: point.page,
       grounded: true,
+      skipLLM: true,
       source: {
         page: point.page,
         title: point.title,
@@ -1372,6 +1376,102 @@ function aiHomeReply(text, page) {
     },
     answer: `${matched ? '' : `教材中没有直接出现你这句话的表述，我先按当前页「${point.title}」回答：\n\n`}${point.summary}\n\n核心结论：${point.formulas[0]}\n\n${citePoint(point, true)}`
   };
+}
+
+/* ---------------- 大模型提示词 ---------------- */
+
+/**
+ * 教材问答：把匹配到的知识点内容作为【教材片段】喂给模型，
+ * 约束其严格依据教材、标注页码；history 已包含当前用户提问（含多轮上下文）。
+ */
+function buildTextbookMessages(history, point, page) {
+  const messages = [];
+  if (point) {
+    const where = sectionTitleOfPoint(point);
+    messages.push({
+      role: 'system',
+      content: [
+        `你是「${db.course.name}」课程的 AI 助教，正在回答学生关于教材的提问。`,
+        `你必须严格依据下面给出的【教材片段】作答，禁止引入教材之外的内容。`,
+        ``,
+        `【教材片段】`,
+        `课程：${db.course.name}`,
+        `章节：${where.chapter || ''} / 小节：${where.section || ''}`,
+        `页码：第 ${point.page} 页`,
+        `知识点：${point.title}`,
+        point.summary ? `内容摘要：${point.summary}` : '',
+        point.formulas && point.formulas.length ? `核心公式：${point.formulas.join('；')}` : '',
+        point.params && point.params.length ? `符号说明：${point.params.map(p => `${p.sym} 表示${p.name}`).join('；')}` : '',
+        point.excerpt ? `教材原文：${point.excerpt}` : '',
+        ``,
+        `回答要求：`,
+        `1. 用中文，先给结论再展开，分点清晰。`,
+        `2. 只能依据上述教材片段；如果学生的问题在片段中没有依据，直接说明“教材未覆盖该内容”，不要猜测或发挥。`,
+        `3. 在回答中自然提及“第 ${point.page} 页「${point.title}」”，方便学生回到原文核对。`,
+        `4. 不要整段复述教材原文，页面会单独展示原文卡片。`
+      ].filter(Boolean).join('\n')
+    });
+  } else {
+    messages.push({
+      role: 'system',
+      content: `你是「${db.course.name}」课程的 AI 助教。当前选中的教材页（第 ${page || '?'} 页）没有匹配到相关知识点。如果学生的问题不在教材范围内，请直接说明“教材未覆盖该内容”，不要额外发挥。用中文简洁回答。`
+    });
+  }
+  (history || []).forEach(m => {
+    if (!m || m.pending) return;
+    if (m.role === 'user') messages.push({ role: 'user', content: m.text });
+    else if (m.role === 'ai') messages.push({ role: 'assistant', content: m.text });
+  });
+  return messages;
+}
+
+/**
+ * 作业题追问：把题目 + 关联教材内容喂给模型，引导思路、不直接给答案；
+ * history 已包含当前追问（含多轮上下文）。
+ */
+function buildTutorMessages(history, q) {
+  const point = q ? P(q.knowledgeId) : null;
+  const messages = [];
+  if (q && point) {
+    const where = sectionTitleOfPoint(point);
+    const opts = q.options ? q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n') : '';
+    messages.push({
+      role: 'system',
+      content: [
+        `你是「${db.course.name}」课程的 AI 助教，正在辅导学生解一道作业题。`,
+        ``,
+        `【题目】`,
+        q.stem,
+        opts ? `选项：\n${opts}` : '',
+        q.type === 'single' ? `（这是单选题，正确选项是 ${String.fromCharCode(65 + q.answer)}；学生未提交前不要直接透露答案）` : '',
+        ``,
+        `【关联教材】`,
+        `知识点：${point.title}（第 ${point.page} 页，${where.section || ''}）`,
+        point.summary ? `摘要：${point.summary}` : '',
+        point.formulas && point.formulas.length ? `公式：${point.formulas.join('；')}` : '',
+        point.excerpt ? `教材原文：${point.excerpt}` : '',
+        ``,
+        `回答要求：`,
+        `1. 用中文，像老师一样引导思路，不要直接给出最终答案（除非学生明确表示已提交、想看解析）。`,
+        `2. 严格依据题目和上述教材内容，不超纲发挥。`,
+        `3. 在回答中提及“第 ${point.page} 页”，帮助学生回看原文。`,
+        `4. 简洁，每次回复聚焦一步。`
+      ].filter(Boolean).join('\n')
+    });
+  } else {
+    messages.push({ role: 'system', content: '你是课程 AI 助教，辅导学生解题，引导思路、不直接给答案，依据课件内容作答，用中文简洁回复。' });
+  }
+  (history || []).forEach(c => {
+    if (!c || c.pending) return;
+    if (c.role === 'me' || c.role === 'user') messages.push({ role: 'user', content: c.text });
+    else if (c.role === 'ai') messages.push({ role: 'assistant', content: c.text });
+  });
+  return messages;
+}
+
+/** 滚动聊天区域到底部（兼容 AI 问答页与答疑抽屉） */
+function scrollChatBottom() {
+  document.querySelectorAll('.chat-body, .drawer .chat').forEach(el => { el.scrollTop = el.scrollHeight; });
 }
 
 /** 当前提问关联的教材页：优先所选小节，其次手动选择，最后第一页 */
@@ -1416,23 +1516,41 @@ function setAiChapter(chapterId) {
   setAiSection(group.sections[0].section.id);
 }
 
-function askAiHome(text) {
+async function askAiHome(text) {
   const question = String(text || '').trim();
   if (!question) {
     toast('先输入你的问题');
     return false;
   }
   const page = aiCurrentPage();
-  const reply = aiHomeReply(question, page);
+  const reply = aiHomeReply(question, page); // 复用现有匹配逻辑：拿到知识点/页码/原文/兜底回答
+
   ui.aiHomeChat.push({ role: 'user', text: question });
-  ui.aiHomeChat.push({
-    role: 'ai',
-    text: reply.answer,
-    pointId: reply.pointId,
-    page: reply.page,
-    grounded: reply.grounded,
-    source: reply.source
-  });
+  const pendingMsg = {
+    role: 'ai', text: '', pending: true,
+    pointId: reply.pointId, page: reply.page,
+    grounded: reply.grounded, source: reply.source
+  };
+  ui.aiHomeChat.push(pendingMsg);
+  render();
+  scrollChatBottom();
+
+  /* 默认用本地回答兜底；配置了大模型且非固定出题意图时，调用真实模型 */
+  let answerText = reply.answer;
+  let usedLLM = false;
+  if (llmReady() && !reply.skipLLM) {
+    const point = reply.pointId ? P(reply.pointId) : null;
+    const messages = buildTextbookMessages(ui.aiHomeChat, point, page);
+    const res = await callLLM({ messages, temperature: 0.5, maxTokens: 900 });
+    if (res.ok && res.text.trim()) {
+      answerText = res.text.trim();
+      usedLLM = true;
+    }
+  }
+
+  pendingMsg.text = answerText;
+  pendingMsg.pending = false;
+  pendingMsg.usedLLM = usedLLM;
 
   db.aiQuestions.unshift({
     id: `aiq-${Date.now()}`,
@@ -1441,13 +1559,14 @@ function askAiHome(text) {
     studentId: 's1',
     studentName: '李同学',
     question,
-    answer: reply.answer,
+    answer: answerText,
     knowledgeId: reply.pointId,
     createdAt: '今天 10:5' + (new Date().getMinutes() % 10),
     reviewed: false
   });
   saveDb();
   render();
+  scrollChatBottom();
   return true;
 }
 
@@ -1474,7 +1593,10 @@ function toggleAiReviewed(id) {
 /* ---------------- 学生作答 ---------------- */
 
 function selectOption(qid, index) {
-  ui.draft[qid] = index;
+  const cur = ui.draft[qid];
+  ui.draft[qid] = (cur && typeof cur === 'object')
+    ? { text: String(index), images: cur.images || [] }
+    : { text: String(index), images: [] };
   render();
 }
 
@@ -1605,9 +1727,12 @@ function submitAssignment(assignmentId) {
     const value = ui.draft[qid];
     answers[qid] = value;
     if (q.type === 'single') {
-      const got = Number(value) === q.answer ? q.score : 0;
+      const t = answerText(value).trim();
+      const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
       scores[qid] = got;
       total += got;
+      const imgs = answerImages(value);
+      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。` };
     } else {
       const text = answerText(value);
       const imgs = answerImages(value);
@@ -1855,14 +1980,34 @@ function askHint(level, qid) {
   render();
 }
 
-function askTutor(text, qid) {
-  qid = qid || ui.tutorQuestionId;
+async function askTutor(text, qid) {
+  qid = qid || ui.tutorQuestionId || ui.aiHomeQuestionId;
   if (!qid) return;
   const q = Q(qid);
+  if (!q) return;
   const chats = ui.aiChats[qid] || (ui.aiChats[qid] = []);
   chats.push({ role: 'me', text });
-  chats.push({ role: 'ai', text: mockAi.reply(q, text) });
+  const pending = { role: 'ai', text: '', pending: true };
+  chats.push(pending);
   render();
+  scrollChatBottom();
+
+  /* 默认用本地模板回答兜底；配置了大模型时调用真实模型 */
+  let answer = mockAi.reply(q, text);
+  let usedLLM = false;
+  if (llmReady()) {
+    const messages = buildTutorMessages(chats, q);
+    const res = await callLLM({ messages, temperature: 0.6, maxTokens: 700 });
+    if (res.ok && res.text.trim()) {
+      answer = res.text.trim();
+      usedLLM = true;
+    }
+  }
+  pending.text = answer;
+  pending.pending = false;
+  pending.usedLLM = usedLLM;
+  render();
+  scrollChatBottom();
 }
 
 function setAiHomeMode(mode) {
@@ -1883,4 +2028,73 @@ function sendAiHomeTutor() {
   const text = input.value.trim();
   if (!text) return;
   askTutor(text, ui.aiHomeQuestionId);
+}
+
+/* ---------------- AI 模型设置 ---------------- */
+
+function openLlmSettings() {
+  ui.llmSettingsOpen = true;
+  render();
+}
+
+function closeLlmSettings() {
+  ui.llmSettingsOpen = false;
+  render();
+}
+
+function applyLlmPreset(key) {
+  const p = LLM_PRESETS[key];
+  if (!p) return;
+  const f = document.getElementById('llm-settings-form');
+  if (!f) return;
+  if (p.baseUrl) f.baseUrl.value = p.baseUrl;
+  if (p.model) f.model.value = p.model;
+  toast(`已填入「${p.label}」预设，确认 Key 后点保存`);
+}
+
+function toggleLlmKeyVisibility() {
+  const input = document.getElementById('llm-key-input');
+  const btn = document.getElementById('llm-key-toggle');
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  if (btn) btn.textContent = show ? '隐藏' : '显示';
+}
+
+function saveLlmSettings() {
+  const f = document.getElementById('llm-settings-form');
+  if (!f) return;
+  const data = {};
+  new FormData(f).forEach((v, k) => { data[k] = v; });
+  const baseUrl = String(data.baseUrl || '').trim();
+  const model = String(data.model || '').trim();
+  if (!/^https?:\/\//i.test(baseUrl)) { toast('Base URL 需以 http(s):// 开头'); return; }
+  if (!model) { toast('模型名称不能为空'); return; }
+  saveLlmConfig({
+    enabled: data.enabled === 'on',
+    baseUrl,
+    model,
+    apiKey: String(data.apiKey || '')
+  });
+  toast('已保存 AI 模型配置');
+  ui.llmSettingsOpen = false;
+  render();
+}
+
+function clearLlmSettingsAction() {
+  clearLlmConfig();
+  toast('已清除配置，恢复默认 Agnes 预设（需重新填写 Key）');
+  render();
+}
+
+async function testLlmConnection() {
+  if (!llmReady()) { toast('请先填写 Base URL、模型名称和 API Key'); return; }
+  toast('正在测试连接…');
+  const res = await callLLM({
+    messages: [{ role: 'user', content: '只回复四个字：连接成功' }],
+    temperature: 0,
+    maxTokens: 20
+  });
+  if (res.ok) toast(`连接成功：${(res.text || '').trim().slice(0, 30)}`);
+  else toast(`连接失败（${res.reason}）：${(res.error || '').slice(0, 60)}`);
 }

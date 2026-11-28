@@ -676,7 +676,7 @@ function practiceDetailPanel(doneItems) {
         return `
         <div class="review-card" style="background:var(--surface-2)">
           <div class="review-head"><b>Q${index + 1} · ${esc(ex.title)}</b><span class="badge">教材第 ${ex.page} 页</span></div>
-          <div class="review-text">${esc(sub.answers[eid] || '未作答')}</div>
+          <div class="review-text">${answerDisplayHtml(sub.answers[eid], '未作答')}</div>
         </div>`;
       }).join('')}
       <div class="privacy-note" style="margin-top:12px">
@@ -745,7 +745,9 @@ function wrongBookView() {
           <span>得分 ${w.score} / ${w.max}</span>
         </div>
         <div class="wrong-answer-line">
-          <span class="mine">我的答案：${esc(answerText(w.question, w.answer))}</span>
+          <span class="mine">我的答案：${w.question.type === 'single'
+            ? (() => { const t = answerText(w.answer).trim(); const l = t === '' ? '未作答' : String.fromCharCode(65 + Number(t)); const ph = answerImages(w.answer).length ? `（附 ${answerImages(w.answer).length} 张照片）` : ''; return l + ph; })()
+            : answerDisplayHtml(w.answer, '未作答')}</span>
           <span class="right">正确答案：${esc(right)}</span>
         </div>
         <div class="wrong-diag">错因：${esc((w.question.diagnosis && w.question.diagnosis.reason) || '需要回到课件重新梳理该知识点。')}</div>
@@ -845,7 +847,7 @@ function redoView() {
           </div>
           <span class="badge ${full ? 'success' : 'danger'}">${full ? '已订正' : '仍需巩固'}</span>
         </div>
-        ${q.type === 'short' ? `<div class="review-card" style="background:var(--surface-2)"><div class="review-head"><b>我的重做答案</b></div><div class="review-text">${answerDisplayHtml(item ? item.answer : '')}</div></div>` : ''}
+        <div class="review-card" style="background:var(--surface-2)"><div class="review-head"><b>我的重做答案</b></div><div class="review-text">${q.type === 'single' ? singleAnswerLineHtml(item ? item.answer : '', q.answer) : answerDisplayHtml(item ? item.answer : '')}</div></div>
         ${answerAndStepsHtml(q)}
       </div>`;
     }).join('');
@@ -867,10 +869,7 @@ function redoView() {
     <div style="margin-top:16px">${detail}</div>`;
   }
 
-  const answeredCount = questions.filter(q => {
-    const value = redo.answers[q.id];
-    return value !== undefined && value !== null && value !== '';
-  }).length;
+  const answeredCount = questions.filter(q => answerHasContent(redo.answers[q.id])).length;
 
   const cards = questions.map((q, index) => {
     const value = redo.answers[q.id];
@@ -883,12 +882,13 @@ function redoView() {
         </div>
       </div>
       ${q.type === 'single'
-        ? q.options.map((opt, i) => `
-          <div class="option ${value === i ? 'selected' : ''}" data-act="redo-option" data-id="${q.id}" data-index="${i}">
+        ? `${q.options.map((opt, i) => `
+          <div class="option ${pickedIndex(value) === i ? 'selected' : ''}" data-act="redo-option" data-id="${q.id}" data-index="${i}">
             <span class="key">${String.fromCharCode(65 + i)}</span>
             <span>${esc(opt)}</span>
-          </div>`).join('')
-        : `<textarea class="textarea" data-act="redo-short" data-id="${q.id}" placeholder="重新写下你的答案与步骤…">${esc(value || '')}</textarea>
+          </div>`).join('')}
+          <div class="answer-images">${answerImageBarHtml('redo', q.id, value, '可附上手写解题过程照片（选填，不影响选项判分）')}</div>`
+        : `<textarea class="textarea" data-act="redo-short" data-id="${q.id}" placeholder="重新写下你的答案与步骤…">${esc(answerText(value) || '')}</textarea>
           ${answerImageBarHtml('redo', q.id, redo.answers[q.id])}`}
     </div>`;
   }).join('');
@@ -908,7 +908,7 @@ function redoView() {
 }
 
 /* 照片作答上传条（作答阶段专用）：缩略图可删除/预览，label 触发相机或文件选择 */
-function answerImageBarHtml(kind, qid, value) {
+function answerImageBarHtml(kind, qid, value, hint) {
   const u = unwrapAnswer(value);
   const thumbs = u.images.map((src, i) => `
     <span class="ans-thumb-wrap">
@@ -922,8 +922,26 @@ function answerImageBarHtml(kind, qid, value) {
       <input type="file" accept="image/*" capture="environment" multiple data-act="answer-file" data-kind="${kind}" data-id="${qid}" ${canAdd ? '' : 'disabled'}>
       📷 拍照 / 上传图片
     </label>
-    <span class="form-hint">可上传手写过程照片 · 文字与照片任选其一即可提交 · 最多 ${MAX_ANSWER_IMAGES} 张</span>
+    <span class="form-hint">${hint || `可上传手写过程照片 · 文字与照片任选其一即可提交 · 最多 ${MAX_ANSWER_IMAGES} 张`}</span>
   </div>`;
+}
+
+/* 单选题作答展示：选项字母 + 对错 + 已附照片缩略图（学生结果/重做结果共用） */
+function singleAnswerLineHtml(value, answer) {
+  const u = unwrapAnswer(value);
+  const idx = u.text === '' ? -1 : Number(u.text);
+  const ok = idx === answer;
+  const letter = idx >= 0 ? String.fromCharCode(65 + idx) : '未选';
+  const imgs = u.images.length
+    ? `<div class="ans-imgs" style="margin-top:8px">${u.images.map((src, i) => `<span class="ans-thumb-wrap"><img class="ans-thumb" src="${src}" alt="作答图片" data-act="preview-image" data-src="${src}"><span class="ans-thumb-idx">${i + 1}</span></span>`).join('')}</div>`
+    : '';
+  return `你的答案：<b>${ok ? '✓' : '✗'} ${letter}</b>${u.images.length ? `（附 ${u.images.length} 张照片）` : ''}${imgs}`;
+}
+
+/* 单选题已选序号：未作答返回 -1，避免空值被 Number('')===0 误判为选中 A */
+function pickedIndex(value) {
+  const t = answerText(value).trim();
+  return t === '' ? -1 : Number(t);
 }
 
 function exercisePlayerView(distId) {
@@ -1028,12 +1046,13 @@ function playerView(assignmentId) {
         </div>
       </div>
       ${q.type === 'single'
-        ? q.options.map((opt, i) => `
-          <div class="option ${value === i ? 'selected' : ''}" data-act="select-option" data-id="${q.id}" data-index="${i}">
+        ? `${q.options.map((opt, i) => `
+          <div class="option ${pickedIndex(value) === i ? 'selected' : ''}" data-act="select-option" data-id="${q.id}" data-index="${i}">
             <span class="key">${String.fromCharCode(65 + i)}</span>
             <span>${esc(opt)}</span>
-          </div>`).join('')
-        : `<textarea class="textarea" data-act="short-input" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(value || '')}</textarea>
+          </div>`).join('')}
+          <div class="answer-images">${answerImageBarHtml('draft', q.id, value, '可附上手写解题过程照片（选填，不影响选项判分）')}</div>`
+        : `<textarea class="textarea" data-act="short-input" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(answerText(value) || '')}</textarea>
           ${answerImageBarHtml('draft', q.id, ui.draft[q.id])}`}
       <div class="q-actions">
         <button class="btn btn-sm btn-ai" data-act="open-tutor" data-id="${q.id}">🤖 问 AI 助教</button>
@@ -1090,12 +1109,16 @@ function resultView(assignment, sub) {
         <span class="badge ${correct ? 'success' : score > 0 ? 'warning' : 'danger'}">${correct ? '正确' : score > 0 ? '部分得分' : '需订正'}</span>
       </div>
 
-      ${q.type === 'single' ? q.options.map((opt, i) => {
+      ${q.type === 'single' ? `${q.options.map((opt, i) => {
         let cls = '';
         if (i === q.answer) cls = 'correct';
-        else if (i === sub.answers[qid]) cls = 'wrong';
+        else if (i === pickedIndex(sub.answers[qid])) cls = 'wrong';
         return `<div class="option ${cls}"><span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(opt)}</span></div>`;
-      }).join('') : `
+      }).join('')}
+        <div class="review-card" style="background:var(--surface-2)">
+          <div class="review-head"><b>我的答案</b></div>
+          <div class="review-text">${singleAnswerLineHtml(sub.answers[qid], q.answer)}</div>
+        </div>` : `
         <div class="review-card" style="background:var(--surface-2)">
           <div class="review-head"><b>我的答案</b></div>
           <div class="review-text">${answerDisplayHtml(sub.answers[qid])}</div>
