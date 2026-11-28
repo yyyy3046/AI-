@@ -6,6 +6,58 @@ const root = document.getElementById('app');
 let liveTimer = null;
 let practiceTimer = null;
 let countdownTimer = null;
+let quizWatchdog = null;
+
+/** 跨课程查找课堂问答（倒计时显示与看门狗共用） */
+function findQuizAssignment(assignmentId) {
+  const list = (typeof studentCourses === 'function') ? studentCourses() : [];
+  for (const c of list) {
+    const data = db.courses[c.courseId];
+    const a = data && (data.assignments || []).find(x => x.id === assignmentId);
+    if (a) return { a, courseId: c.courseId };
+  }
+  return null;
+}
+
+/**
+ * 课堂问答全局看门狗：不依赖学生停留在哪一页，
+ * 只要已开始计时且到点未交卷，就自动交卷并判分。
+ */
+function quizWatchdogTick() {
+  if (!db || !db.session || db.session.role !== 'student') return;
+
+  /* 同步列表页/作业页上的剩余时间文本 */
+  document.querySelectorAll('[data-quiz-left]').forEach(el => {
+    const found = findQuizAssignment(el.getAttribute('data-quiz-left'));
+    const r = found ? quizRemaining(found.a) : null;
+    if (r !== null) el.textContent = `剩余 ${formatClock(r)}`;
+  });
+
+  const list = (typeof studentCourses === 'function') ? studentCourses() : [];
+  for (const c of list) {
+    const data = db.courses[c.courseId];
+    if (!data) continue;
+    for (const a of (data.assignments || [])) {
+      if (!a || a.mode !== 'quiz' || !a.duration) continue;
+      if (!(db.quizStart && db.quizStart[a.id])) continue;
+      if (mySubmission(a.id)) continue;
+      const r = quizRemaining(a);
+      if (r === null || r > 0) continue;
+      /* 到点：切到对应课程后自动交卷判分 */
+      if (c.courseId !== db.courseId) {
+        const cls = classOfCourseForStudent(c.courseId);
+        if (cls) { useCourse(db, c.courseId); db.studentClassId = cls.id; }
+      }
+      submitAssignment(a.id, { auto: true });
+      return;
+    }
+  }
+}
+
+function startQuizWatchdog() {
+  if (quizWatchdog) return;
+  quizWatchdog = setInterval(quizWatchdogTick, 1000);
+}
 
 function parseHash() {
   const raw = (location.hash || '#/login').replace(/^#\/?/, '');
@@ -53,7 +105,10 @@ function render() {
     else { location.hash = '#/teacher/studio'; return; }
   } else {
     if (page === 'learn') content = learnView();
-    else if (page === 'practice') content = param ? playerView(param) : practiceView();
+    else if (page === 'practice') {
+      if (param) ensureAssignmentDraft(param);
+      content = param ? playerView(param) : practiceView();
+    }
     else if (page === 'practice-self') content = practiceSelfView();
     else if (page === 'practice-play') content = practicePlayView();
     else if (page === 'exercise') content = param ? exercisePlayerView(param) : practiceView();
@@ -100,12 +155,13 @@ function render() {
     }, 60000);
   }
 
-  /* 课堂问答：每秒刷新倒计时，归零自动交卷判分（刷新不重置） */
+  /* 课堂问答：每秒刷新倒计时显示；归零由全局看门狗统一交卷判分 */
+  if (db.session.role === 'student') startQuizWatchdog();
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   if (db.session.role === 'student' && page === 'practice' && param) {
     const a = A(param);
     if (a && a.mode === 'quiz' && !mySubmission(param) && quizRemaining(a) !== null) {
-      const tick = () => {
+      const paint = () => {
         const cur = A(param);
         if (!cur) return;
         if (mySubmission(param)) {
@@ -117,13 +173,9 @@ function render() {
         const txt = el && el.querySelector('.qt-text');
         if (txt && r !== null) txt.textContent = formatClock(r);
         if (el) el.classList.toggle('urgent', r !== null && r <= 30);
-        if (r !== null && r <= 0) {
-          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-          submitAssignment(param, { auto: true });
-        }
       };
-      tick();
-      countdownTimer = setInterval(tick, 1000);
+      paint();
+      countdownTimer = setInterval(paint, 1000);
     }
   }
 

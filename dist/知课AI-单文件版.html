@@ -3215,7 +3215,8 @@ function buildSeed() {  const seed = {
     messages: [],
     selfCheck: {},
     practiceRecords: [],
-    quizStart: {}
+    quizStart: {},
+    quizDrafts: {}
   };
 
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
@@ -3389,6 +3390,7 @@ const ui = {
   reviewDraft: null,
   reviewFilter: 'pending',
   draft: {},
+  draftAssignmentId: null,
   exerciseDraft: {},
   previewImage: null,
   aiChats: {},
@@ -3437,6 +3439,7 @@ function loadDb() {
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
         if (!Array.isArray(parsed.practiceRecords)) parsed.practiceRecords = [];
         if (!parsed.quizStart || typeof parsed.quizStart !== 'object') parsed.quizStart = {};
+        if (!parsed.quizDrafts || typeof parsed.quizDrafts !== 'object') parsed.quizDrafts = {};
         if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
@@ -3493,6 +3496,7 @@ function resetDb() {
   ui.reviewDraft = null;
   ui.reviewFilter = 'pending';
   ui.draft = {};
+  ui.draftAssignmentId = null;
   ui.exerciseDraft = {};
   ui.practice = null;
   ui.practiceCourse = 'math';
@@ -5902,17 +5906,65 @@ function toggleAiReviewed(id) {
 
 /* ---------------- 学生作答 ---------------- */
 
+/** 课堂问答草稿：持久化到 db，刷新/切页不丢，到点自动判分才有意义 */
+let quizDraftTimer = null;
+
+function persistQuizDraftNow() {
+  if (quizDraftTimer) { clearTimeout(quizDraftTimer); quizDraftTimer = null; }
+  const aid = ui.draftAssignmentId;
+  if (!aid) return;
+  const a = A(aid);
+  if (!a || a.mode !== 'quiz' || mySubmission(aid)) return;
+  if (!db.quizDrafts) db.quizDrafts = {};
+  db.quizDrafts[aid] = JSON.parse(JSON.stringify(ui.draft || {}));
+  saveDb();
+}
+
+function schedulePersistQuizDraft() {
+  const aid = ui.draftAssignmentId;
+  if (!aid) return;
+  if (quizDraftTimer) clearTimeout(quizDraftTimer);
+  quizDraftTimer = setTimeout(persistQuizDraftNow, 400);
+}
+
+/** 当前作业的作答草稿：优先内存，其次已持久化的课堂草稿 */
+function draftFor(assignmentId) {
+  if (ui.draftAssignmentId === assignmentId) return ui.draft || {};
+  const saved = db.quizDrafts && db.quizDrafts[assignmentId];
+  return saved || ui.draft || {};
+}
+
+/** 进入某份作业页时恢复草稿；课堂问答首次进入即开始计时（刷新不重置） */
+function ensureAssignmentDraft(assignmentId) {
+  if (ui.draftAssignmentId === assignmentId) return;
+  const a = A(assignmentId);
+  if (!a) return;
+  const saved = a.mode === 'quiz' ? (db.quizDrafts && db.quizDrafts[assignmentId]) : null;
+  ui.draft = saved ? JSON.parse(JSON.stringify(saved)) : {};
+  a.questionIds.forEach(qid => {
+    const q = Q(qid);
+    if (q && q.type === 'short' && ui.draft[qid] === undefined) ui.draft[qid] = '';
+  });
+  ui.draftAssignmentId = assignmentId;
+  if (a.mode === 'quiz' && a.duration && !mySubmission(assignmentId)) {
+    if (!db.quizStart) db.quizStart = {};
+    if (!db.quizStart[assignmentId]) { db.quizStart[assignmentId] = Date.now(); saveDb(); }
+  }
+}
+
 function selectOption(qid, index) {
   const cur = ui.draft[qid];
   ui.draft[qid] = (cur && typeof cur === 'object')
     ? { text: String(index), images: cur.images || [] }
     : { text: String(index), images: [] };
+  schedulePersistQuizDraft();
   render();
 }
 
 function setShortAnswer(qid, value) {
   const cur = ui.draft[qid];
   ui.draft[qid] = (cur && typeof cur === 'object') ? { text: value, images: cur.images || [] } : { text: value, images: [] };
+  schedulePersistQuizDraft();
 }
 
 /* ---------------- 照片作答 ---------------- */
@@ -5985,6 +6037,7 @@ async function handleAnswerFiles(fileList, kind, qid) {
     try { ref.images.push(await compressImageFile(f)); }
     catch (e) { toast('图片读取失败，请重试'); }
   }
+  if (kind === 'draft') persistQuizDraftNow();
   render();
 }
 
@@ -5992,6 +6045,7 @@ function removeAnswerImage(kind, qid, idx) {
   const ref = answerStateRef(kind, qid);
   if (!ref || !Array.isArray(ref.images)) return;
   ref.images.splice(Number(idx), 1);
+  if (kind === 'draft') persistQuizDraftNow();
   render();
 }
 
@@ -6399,19 +6453,14 @@ function startAssignment(id) {
     return;
   }
   /* 课堂问答：首次开始时记录起始时刻，刷新不重置，到点自动交卷 */
-  if (assignment.mode === 'quiz' && assignment.duration && !mySubmission(id)) {
-    if (!db.quizStart) db.quizStart = {};
-    if (!db.quizStart[id]) { db.quizStart[id] = Date.now(); saveDb(); }
-  }
-  ui.draft = {};
-  assignment.questionIds.forEach(qid => {
-    const q = Q(qid);
-    if (q && q.type === 'short') ui.draft[qid] = '';
-  });
+  ensureAssignmentDraft(id);
   ui.activeQuestionId = assignment.questionIds[0];
   location.hash = `#/student/practice/${id}`;
   render();
 }
+
+/** 提交互斥：页面倒计时与全局看门狗可能同时到达归零点，避免重复交卷 */
+const submitLocks = {};
 
 async function submitAssignment(assignmentId, opts) {
   const assignment = A(assignmentId);
@@ -6422,70 +6471,77 @@ async function submitAssignment(assignmentId, opts) {
     toast('本次作业已截止，无法提交');
     return;
   }
+  if (submitLocks[assignmentId]) return;
+  submitLocks[assignmentId] = true;
 
-  const missing = assignment.questionIds.filter(qid => !answerHasContent(ui.draft[qid]));
-  if (!auto && missing.length) {
-    toast(`还有 ${missing.length} 道题未作答`);
-    return;
-  }
-  if (mySubmission(assignmentId)) {
-    toast('本次任务已提交');
-    return;
-  }
-
-  const answers = {};
-  const scores = {};
-  const aiReviews = {};
-  let total = 0;
-
-  for (const qid of assignment.questionIds) {
-    const q = Q(qid);
-    const value = ui.draft[qid];
-    answers[qid] = value;
-    if (!q) { scores[qid] = 0; continue; }
-    if (q.type === 'single') {
-      const t = answerText(value).trim();
-      const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
-      scores[qid] = got;
-      total += got;
-      const imgs = answerImages(value);
-      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
-    } else {
-      const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
-      scores[qid] = review.score;
-      aiReviews[qid] = review;
-      total += review.score;
+  try {
+    const draft = draftFor(assignmentId);
+    const missing = assignment.questionIds.filter(qid => !answerHasContent(draft[qid]));
+    if (!auto && missing.length) {
+      toast(`还有 ${missing.length} 道题未作答`);
+      return;
     }
+    if (mySubmission(assignmentId)) {
+      toast('本次任务已提交');
+      return;
+    }
+
+    const answers = {};
+    const scores = {};
+    const aiReviews = {};
+    let total = 0;
+
+    for (const qid of assignment.questionIds) {
+      const q = Q(qid);
+      const value = draft[qid];
+      answers[qid] = value;
+      if (!q) { scores[qid] = 0; continue; }
+      if (q.type === 'single') {
+        const t = answerText(value).trim();
+        const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
+        scores[qid] = got;
+        total += got;
+        const imgs = answerImages(value);
+        if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
+      } else {
+        const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
+        scores[qid] = review.score;
+        aiReviews[qid] = review;
+        total += review.score;
+      }
+    }
+
+    if (mySubmission(assignmentId)) { saveDb(); render(); return; }
+
+    const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
+
+    db.submissions.unshift({
+      id: `sub-own-${assignmentId}`,
+      courseId: db.courseId,
+      classId: db.studentClassId,
+      assignmentId,
+      studentId: 's1',
+      studentName: '李同学',
+      answers,
+      scores,
+      aiReviews,
+      total,
+      max: totalScore(assignment.questionIds),
+      status: hasShort ? 'ai_reviewed' : 'auto',
+      submittedAt: nowStamp()
+    });
+
+    /* 提交后清除限时开始记录与草稿，停止倒计时 */
+    if (db.quizStart && assignmentId in db.quizStart) delete db.quizStart[assignmentId];
+    if (db.quizDrafts && assignmentId in db.quizDrafts) delete db.quizDrafts[assignmentId];
+    if (ui.draftAssignmentId === assignmentId) { ui.draftAssignmentId = null; ui.draft = {}; }
+
+    saveDb();
+    render();
+    toast(auto ? '⏱ 时间到，已自动交卷并判分' : '已提交，AI 已完成初评');
+  } finally {
+    delete submitLocks[assignmentId];
   }
-
-  if (mySubmission(assignmentId)) { saveDb(); render(); return; }
-
-  const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
-
-  db.submissions.unshift({
-    id: `sub-own-${assignmentId}`,
-    courseId: db.courseId,
-    classId: db.studentClassId,
-    assignmentId,
-    studentId: 's1',
-    studentName: '李同学',
-    answers,
-    scores,
-    aiReviews,
-    total,
-    max: totalScore(assignment.questionIds),
-    status: hasShort ? 'ai_reviewed' : 'auto',
-    submittedAt: nowStamp()
-  });
-
-  /* 提交后清除限时开始记录，停止倒计时 */
-  if (db.quizStart && assignmentId in db.quizStart) {
-    delete db.quizStart[assignmentId];
-  }
-
-  saveDb();
-  render();
-  toast(auto ? '时间到，已自动提交并判分' : '已提交，AI 已完成初评');
 }
 
 /* ---------------- 教师复核 ---------------- */
@@ -9995,9 +10051,11 @@ function practiceView() {
     data.assignments.filter(a => a.mode === mode).forEach(a => {
       const sub = db.submissions.find(s => s.assignmentId === a.id && s.studentId === 's1');
       const max = a.questionIds.reduce((sum, qid) => sum + ((data.questions.find(q => q.id === qid) || {}).score || 0), 0);
+      const quizLeft = a.mode === 'quiz' && !sub ? quizRemaining(a) : null;
       items.push({
         kind: 'assignment', id: a.id, title: a.title, course: c, sub,
         expired: !sub && isExpired(a),
+        quizLeft,
         meta: `${a.questionIds.length} 题 · ${max} 分${a.note ? ` · ${a.note}` : ''}`,
         dueAt: a.mode === 'homework' ? a.dueAt : null
       });
@@ -10023,10 +10081,17 @@ function practiceView() {
   <div class="practice-item">
     <div class="practice-item-head">
       <span class="practice-course">${esc(item.course.name)}</span>
-      <span class="badge warning">待完成</span>
+      ${item.quizLeft !== null && item.quizLeft !== undefined
+        ? '<span class="badge warning">进行中</span>'
+        : '<span class="badge warning">待完成</span>'}
     </div>
     <div class="practice-item-title">${esc(item.title)}</div>
     <div class="practice-item-meta">${item.meta}</div>
+    ${item.quizLeft !== null && item.quizLeft !== undefined ? `
+      <div class="deadline">
+        <span>⏱ 课堂问答计时中 · 到点自动交卷判分</span>
+        <span class="quiz-left" data-quiz-left="${item.id}">剩余 ${formatClock(item.quizLeft)}</span>
+      </div>` : ''}
     ${item.dueAt ? `
       <div class="deadline">
         <span>⏰ 截止 ${formatDue(item.dueAt)}</span>
@@ -10545,7 +10610,7 @@ function playerView(assignmentId) {
         <h1>${esc(assignment.title)}</h1>
         <p>${assignment.questionIds.length} 题 · 满分 ${totalScore(assignment.questionIds)} 分 · ${esc(assignment.note || '')}</p>
       </div>
-      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
+      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ 剩余 <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
     </div>`;
 
   if (sub) return head + resultView(assignment, sub);
@@ -10609,7 +10674,7 @@ function playerView(assignmentId) {
         <div class="divider"></div>
         <div class="privacy-note">
           <span>📌</span>
-          <div>${assignment.mode === 'quiz' ? '课堂问答：倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
+          <div>${assignment.mode === 'quiz' ? '课堂问答：计时从首次进入开始，刷新页面或切到其他页面都不会重置；倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
         </div>
         <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">${assignment.mode === 'quiz' ? '交卷' : '提交作业'}</button>
       </div>
@@ -10865,6 +10930,58 @@ const root = document.getElementById('app');
 let liveTimer = null;
 let practiceTimer = null;
 let countdownTimer = null;
+let quizWatchdog = null;
+
+/** 跨课程查找课堂问答（倒计时显示与看门狗共用） */
+function findQuizAssignment(assignmentId) {
+  const list = (typeof studentCourses === 'function') ? studentCourses() : [];
+  for (const c of list) {
+    const data = db.courses[c.courseId];
+    const a = data && (data.assignments || []).find(x => x.id === assignmentId);
+    if (a) return { a, courseId: c.courseId };
+  }
+  return null;
+}
+
+/**
+ * 课堂问答全局看门狗：不依赖学生停留在哪一页，
+ * 只要已开始计时且到点未交卷，就自动交卷并判分。
+ */
+function quizWatchdogTick() {
+  if (!db || !db.session || db.session.role !== 'student') return;
+
+  /* 同步列表页/作业页上的剩余时间文本 */
+  document.querySelectorAll('[data-quiz-left]').forEach(el => {
+    const found = findQuizAssignment(el.getAttribute('data-quiz-left'));
+    const r = found ? quizRemaining(found.a) : null;
+    if (r !== null) el.textContent = `剩余 ${formatClock(r)}`;
+  });
+
+  const list = (typeof studentCourses === 'function') ? studentCourses() : [];
+  for (const c of list) {
+    const data = db.courses[c.courseId];
+    if (!data) continue;
+    for (const a of (data.assignments || [])) {
+      if (!a || a.mode !== 'quiz' || !a.duration) continue;
+      if (!(db.quizStart && db.quizStart[a.id])) continue;
+      if (mySubmission(a.id)) continue;
+      const r = quizRemaining(a);
+      if (r === null || r > 0) continue;
+      /* 到点：切到对应课程后自动交卷判分 */
+      if (c.courseId !== db.courseId) {
+        const cls = classOfCourseForStudent(c.courseId);
+        if (cls) { useCourse(db, c.courseId); db.studentClassId = cls.id; }
+      }
+      submitAssignment(a.id, { auto: true });
+      return;
+    }
+  }
+}
+
+function startQuizWatchdog() {
+  if (quizWatchdog) return;
+  quizWatchdog = setInterval(quizWatchdogTick, 1000);
+}
 
 function parseHash() {
   const raw = (location.hash || '#/login').replace(/^#\/?/, '');
@@ -10912,7 +11029,10 @@ function render() {
     else { location.hash = '#/teacher/studio'; return; }
   } else {
     if (page === 'learn') content = learnView();
-    else if (page === 'practice') content = param ? playerView(param) : practiceView();
+    else if (page === 'practice') {
+      if (param) ensureAssignmentDraft(param);
+      content = param ? playerView(param) : practiceView();
+    }
     else if (page === 'practice-self') content = practiceSelfView();
     else if (page === 'practice-play') content = practicePlayView();
     else if (page === 'exercise') content = param ? exercisePlayerView(param) : practiceView();
@@ -10959,12 +11079,13 @@ function render() {
     }, 60000);
   }
 
-  /* 课堂问答：每秒刷新倒计时，归零自动交卷判分（刷新不重置） */
+  /* 课堂问答：每秒刷新倒计时显示；归零由全局看门狗统一交卷判分 */
+  if (db.session.role === 'student') startQuizWatchdog();
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   if (db.session.role === 'student' && page === 'practice' && param) {
     const a = A(param);
     if (a && a.mode === 'quiz' && !mySubmission(param) && quizRemaining(a) !== null) {
-      const tick = () => {
+      const paint = () => {
         const cur = A(param);
         if (!cur) return;
         if (mySubmission(param)) {
@@ -10976,13 +11097,9 @@ function render() {
         const txt = el && el.querySelector('.qt-text');
         if (txt && r !== null) txt.textContent = formatClock(r);
         if (el) el.classList.toggle('urgent', r !== null && r <= 30);
-        if (r !== null && r <= 0) {
-          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-          submitAssignment(param, { auto: true });
-        }
       };
-      tick();
-      countdownTimer = setInterval(tick, 1000);
+      paint();
+      countdownTimer = setInterval(paint, 1000);
     }
   }
 

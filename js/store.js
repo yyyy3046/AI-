@@ -23,6 +23,7 @@ const ui = {
   reviewDraft: null,
   reviewFilter: 'pending',
   draft: {},
+  draftAssignmentId: null,
   exerciseDraft: {},
   previewImage: null,
   aiChats: {},
@@ -71,6 +72,7 @@ function loadDb() {
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
         if (!Array.isArray(parsed.practiceRecords)) parsed.practiceRecords = [];
         if (!parsed.quizStart || typeof parsed.quizStart !== 'object') parsed.quizStart = {};
+        if (!parsed.quizDrafts || typeof parsed.quizDrafts !== 'object') parsed.quizDrafts = {};
         if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
@@ -127,6 +129,7 @@ function resetDb() {
   ui.reviewDraft = null;
   ui.reviewFilter = 'pending';
   ui.draft = {};
+  ui.draftAssignmentId = null;
   ui.exerciseDraft = {};
   ui.practice = null;
   ui.practiceCourse = 'math';

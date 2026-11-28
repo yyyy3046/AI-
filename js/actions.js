@@ -1758,17 +1758,65 @@ function toggleAiReviewed(id) {
 
 /* ---------------- 学生作答 ---------------- */
 
+/** 课堂问答草稿：持久化到 db，刷新/切页不丢，到点自动判分才有意义 */
+let quizDraftTimer = null;
+
+function persistQuizDraftNow() {
+  if (quizDraftTimer) { clearTimeout(quizDraftTimer); quizDraftTimer = null; }
+  const aid = ui.draftAssignmentId;
+  if (!aid) return;
+  const a = A(aid);
+  if (!a || a.mode !== 'quiz' || mySubmission(aid)) return;
+  if (!db.quizDrafts) db.quizDrafts = {};
+  db.quizDrafts[aid] = JSON.parse(JSON.stringify(ui.draft || {}));
+  saveDb();
+}
+
+function schedulePersistQuizDraft() {
+  const aid = ui.draftAssignmentId;
+  if (!aid) return;
+  if (quizDraftTimer) clearTimeout(quizDraftTimer);
+  quizDraftTimer = setTimeout(persistQuizDraftNow, 400);
+}
+
+/** 当前作业的作答草稿：优先内存，其次已持久化的课堂草稿 */
+function draftFor(assignmentId) {
+  if (ui.draftAssignmentId === assignmentId) return ui.draft || {};
+  const saved = db.quizDrafts && db.quizDrafts[assignmentId];
+  return saved || ui.draft || {};
+}
+
+/** 进入某份作业页时恢复草稿；课堂问答首次进入即开始计时（刷新不重置） */
+function ensureAssignmentDraft(assignmentId) {
+  if (ui.draftAssignmentId === assignmentId) return;
+  const a = A(assignmentId);
+  if (!a) return;
+  const saved = a.mode === 'quiz' ? (db.quizDrafts && db.quizDrafts[assignmentId]) : null;
+  ui.draft = saved ? JSON.parse(JSON.stringify(saved)) : {};
+  a.questionIds.forEach(qid => {
+    const q = Q(qid);
+    if (q && q.type === 'short' && ui.draft[qid] === undefined) ui.draft[qid] = '';
+  });
+  ui.draftAssignmentId = assignmentId;
+  if (a.mode === 'quiz' && a.duration && !mySubmission(assignmentId)) {
+    if (!db.quizStart) db.quizStart = {};
+    if (!db.quizStart[assignmentId]) { db.quizStart[assignmentId] = Date.now(); saveDb(); }
+  }
+}
+
 function selectOption(qid, index) {
   const cur = ui.draft[qid];
   ui.draft[qid] = (cur && typeof cur === 'object')
     ? { text: String(index), images: cur.images || [] }
     : { text: String(index), images: [] };
+  schedulePersistQuizDraft();
   render();
 }
 
 function setShortAnswer(qid, value) {
   const cur = ui.draft[qid];
   ui.draft[qid] = (cur && typeof cur === 'object') ? { text: value, images: cur.images || [] } : { text: value, images: [] };
+  schedulePersistQuizDraft();
 }
 
 /* ---------------- 照片作答 ---------------- */
@@ -1841,6 +1889,7 @@ async function handleAnswerFiles(fileList, kind, qid) {
     try { ref.images.push(await compressImageFile(f)); }
     catch (e) { toast('图片读取失败，请重试'); }
   }
+  if (kind === 'draft') persistQuizDraftNow();
   render();
 }
 
@@ -1848,6 +1897,7 @@ function removeAnswerImage(kind, qid, idx) {
   const ref = answerStateRef(kind, qid);
   if (!ref || !Array.isArray(ref.images)) return;
   ref.images.splice(Number(idx), 1);
+  if (kind === 'draft') persistQuizDraftNow();
   render();
 }
 
@@ -2255,19 +2305,14 @@ function startAssignment(id) {
     return;
   }
   /* 课堂问答：首次开始时记录起始时刻，刷新不重置，到点自动交卷 */
-  if (assignment.mode === 'quiz' && assignment.duration && !mySubmission(id)) {
-    if (!db.quizStart) db.quizStart = {};
-    if (!db.quizStart[id]) { db.quizStart[id] = Date.now(); saveDb(); }
-  }
-  ui.draft = {};
-  assignment.questionIds.forEach(qid => {
-    const q = Q(qid);
-    if (q && q.type === 'short') ui.draft[qid] = '';
-  });
+  ensureAssignmentDraft(id);
   ui.activeQuestionId = assignment.questionIds[0];
   location.hash = `#/student/practice/${id}`;
   render();
 }
+
+/** 提交互斥：页面倒计时与全局看门狗可能同时到达归零点，避免重复交卷 */
+const submitLocks = {};
 
 async function submitAssignment(assignmentId, opts) {
   const assignment = A(assignmentId);
@@ -2278,70 +2323,77 @@ async function submitAssignment(assignmentId, opts) {
     toast('本次作业已截止，无法提交');
     return;
   }
+  if (submitLocks[assignmentId]) return;
+  submitLocks[assignmentId] = true;
 
-  const missing = assignment.questionIds.filter(qid => !answerHasContent(ui.draft[qid]));
-  if (!auto && missing.length) {
-    toast(`还有 ${missing.length} 道题未作答`);
-    return;
-  }
-  if (mySubmission(assignmentId)) {
-    toast('本次任务已提交');
-    return;
-  }
-
-  const answers = {};
-  const scores = {};
-  const aiReviews = {};
-  let total = 0;
-
-  for (const qid of assignment.questionIds) {
-    const q = Q(qid);
-    const value = ui.draft[qid];
-    answers[qid] = value;
-    if (!q) { scores[qid] = 0; continue; }
-    if (q.type === 'single') {
-      const t = answerText(value).trim();
-      const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
-      scores[qid] = got;
-      total += got;
-      const imgs = answerImages(value);
-      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
-    } else {
-      const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
-      scores[qid] = review.score;
-      aiReviews[qid] = review;
-      total += review.score;
+  try {
+    const draft = draftFor(assignmentId);
+    const missing = assignment.questionIds.filter(qid => !answerHasContent(draft[qid]));
+    if (!auto && missing.length) {
+      toast(`还有 ${missing.length} 道题未作答`);
+      return;
     }
+    if (mySubmission(assignmentId)) {
+      toast('本次任务已提交');
+      return;
+    }
+
+    const answers = {};
+    const scores = {};
+    const aiReviews = {};
+    let total = 0;
+
+    for (const qid of assignment.questionIds) {
+      const q = Q(qid);
+      const value = draft[qid];
+      answers[qid] = value;
+      if (!q) { scores[qid] = 0; continue; }
+      if (q.type === 'single') {
+        const t = answerText(value).trim();
+        const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
+        scores[qid] = got;
+        total += got;
+        const imgs = answerImages(value);
+        if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
+      } else {
+        const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
+        scores[qid] = review.score;
+        aiReviews[qid] = review;
+        total += review.score;
+      }
+    }
+
+    if (mySubmission(assignmentId)) { saveDb(); render(); return; }
+
+    const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
+
+    db.submissions.unshift({
+      id: `sub-own-${assignmentId}`,
+      courseId: db.courseId,
+      classId: db.studentClassId,
+      assignmentId,
+      studentId: 's1',
+      studentName: '李同学',
+      answers,
+      scores,
+      aiReviews,
+      total,
+      max: totalScore(assignment.questionIds),
+      status: hasShort ? 'ai_reviewed' : 'auto',
+      submittedAt: nowStamp()
+    });
+
+    /* 提交后清除限时开始记录与草稿，停止倒计时 */
+    if (db.quizStart && assignmentId in db.quizStart) delete db.quizStart[assignmentId];
+    if (db.quizDrafts && assignmentId in db.quizDrafts) delete db.quizDrafts[assignmentId];
+    if (ui.draftAssignmentId === assignmentId) { ui.draftAssignmentId = null; ui.draft = {}; }
+
+    saveDb();
+    render();
+    toast(auto ? '⏱ 时间到，已自动交卷并判分' : '已提交，AI 已完成初评');
+  } finally {
+    delete submitLocks[assignmentId];
   }
-
-  if (mySubmission(assignmentId)) { saveDb(); render(); return; }
-
-  const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
-
-  db.submissions.unshift({
-    id: `sub-own-${assignmentId}`,
-    courseId: db.courseId,
-    classId: db.studentClassId,
-    assignmentId,
-    studentId: 's1',
-    studentName: '李同学',
-    answers,
-    scores,
-    aiReviews,
-    total,
-    max: totalScore(assignment.questionIds),
-    status: hasShort ? 'ai_reviewed' : 'auto',
-    submittedAt: nowStamp()
-  });
-
-  /* 提交后清除限时开始记录，停止倒计时 */
-  if (db.quizStart && assignmentId in db.quizStart) {
-    delete db.quizStart[assignmentId];
-  }
-
-  saveDb();
-  render();
-  toast(auto ? '时间到，已自动提交并判分' : '已提交，AI 已完成初评');
 }
 
 /* ---------------- 教师复核 ---------------- */

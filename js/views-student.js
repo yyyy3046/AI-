@@ -709,9 +709,11 @@ function practiceView() {
     data.assignments.filter(a => a.mode === mode).forEach(a => {
       const sub = db.submissions.find(s => s.assignmentId === a.id && s.studentId === 's1');
       const max = a.questionIds.reduce((sum, qid) => sum + ((data.questions.find(q => q.id === qid) || {}).score || 0), 0);
+      const quizLeft = a.mode === 'quiz' && !sub ? quizRemaining(a) : null;
       items.push({
         kind: 'assignment', id: a.id, title: a.title, course: c, sub,
         expired: !sub && isExpired(a),
+        quizLeft,
         meta: `${a.questionIds.length} 题 · ${max} 分${a.note ? ` · ${a.note}` : ''}`,
         dueAt: a.mode === 'homework' ? a.dueAt : null
       });
@@ -737,10 +739,17 @@ function practiceView() {
   <div class="practice-item">
     <div class="practice-item-head">
       <span class="practice-course">${esc(item.course.name)}</span>
-      <span class="badge warning">待完成</span>
+      ${item.quizLeft !== null && item.quizLeft !== undefined
+        ? '<span class="badge warning">进行中</span>'
+        : '<span class="badge warning">待完成</span>'}
     </div>
     <div class="practice-item-title">${esc(item.title)}</div>
     <div class="practice-item-meta">${item.meta}</div>
+    ${item.quizLeft !== null && item.quizLeft !== undefined ? `
+      <div class="deadline">
+        <span>⏱ 课堂问答计时中 · 到点自动交卷判分</span>
+        <span class="quiz-left" data-quiz-left="${item.id}">剩余 ${formatClock(item.quizLeft)}</span>
+      </div>` : ''}
     ${item.dueAt ? `
       <div class="deadline">
         <span>⏰ 截止 ${formatDue(item.dueAt)}</span>
@@ -1259,7 +1268,7 @@ function playerView(assignmentId) {
         <h1>${esc(assignment.title)}</h1>
         <p>${assignment.questionIds.length} 题 · 满分 ${totalScore(assignment.questionIds)} 分 · ${esc(assignment.note || '')}</p>
       </div>
-      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
+      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ 剩余 <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
     </div>`;
 
   if (sub) return head + resultView(assignment, sub);
@@ -1323,7 +1332,7 @@ function playerView(assignmentId) {
         <div class="divider"></div>
         <div class="privacy-note">
           <span>📌</span>
-          <div>${assignment.mode === 'quiz' ? '课堂问答：倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
+          <div>${assignment.mode === 'quiz' ? '课堂问答：计时从首次进入开始，刷新页面或切到其他页面都不会重置；倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
         </div>
         <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">${assignment.mode === 'quiz' ? '交卷' : '提交作业'}</button>
       </div>
