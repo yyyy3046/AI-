@@ -252,11 +252,39 @@ function shellView(pageKey, content) {
 
     <nav class="mobile-nav">${mobileNav}</nav>
     ${scanModal()}
+    ${previewImageModal()}
     ${courseModal()}
     ${drawerPoint()}
     ${questionModal()}
     ${mindmapModal()}
     ${tutorDrawer()}
+  </div>`;
+}
+
+/* 作答内容展示（学生/教师共用）：兼容 string 与 {text, images}，图片可点击放大预览 */
+function answerDisplayHtml(value, emptyText) {
+  const u = unwrapAnswer(value);
+  const textHtml = u.text.trim()
+    ? esc(u.text).replace(/\n/g, '<br>')
+    : `<span class="muted">${emptyText || '未作答'}</span>`;
+  const imgsHtml = u.images.length
+    ? `<div class="ans-imgs">${u.images.map((src, i) => `
+        <span class="ans-thumb-wrap">
+          <img class="ans-thumb" src="${src}" alt="作答图片" data-act="preview-image" data-src="${src}">
+          <span class="ans-thumb-idx">${i + 1}</span>
+        </span>`).join('')}</div>`
+    : '';
+  return `${textHtml}${imgsHtml}`;
+}
+
+/* 全局图片预览灯箱 */
+function previewImageModal() {
+  if (!ui.previewImage) return '';
+  return `<div class="preview-overlay" data-act="close-preview">
+    <div class="preview-body" onclick="event.stopPropagation()">
+      <button class="preview-close" data-act="close-preview">×</button>
+      <img src="${ui.previewImage}" alt="预览">
+    </div>
   </div>`;
 }
 

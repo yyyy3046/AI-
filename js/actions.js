@@ -598,7 +598,8 @@ function setRedoOption(qid, index) {
 
 function setRedoShort(qid, value) {
   if (!ui.redo || ui.redo.result) return;
-  ui.redo.answers[qid] = value;
+  const cur = ui.redo.answers[qid];
+  ui.redo.answers[qid] = (cur && typeof cur === 'object') ? { text: value, images: cur.images || [] } : { text: value, images: [] };
 }
 
 function exitRedo() {
@@ -615,10 +616,7 @@ function submitRedo() {
   const questions = redo.qids
     .map(id => data.questions.find(q => q.id === id))
     .filter(Boolean);
-  const missing = questions.filter(q => {
-    const value = redo.answers[q.id];
-    return value === undefined || value === null || value === '';
-  });
+  const missing = questions.filter(q => !answerHasContent(redo.answers[q.id]));
   if (missing.length) {
     toast(`还有 ${missing.length} 道题未作答`);
     return;
@@ -628,7 +626,11 @@ function submitRedo() {
     const value = redo.answers[q.id];
     let score;
     if (q.type === 'single') score = Number(value) === q.answer ? q.score : 0;
-    else score = mockAi.gradeShortAnswer(q, value).score;
+    else {
+      const text = answerText(value);
+      const imgs = answerImages(value);
+      score = (!text.trim() && imgs.length) ? Math.round(q.score * 0.4) : mockAi.gradeShortAnswer(q, text).score;
+    }
     return { qid: q.id, score, max: q.score, answer: value };
   });
   const total = items.reduce((sum, item) => sum + item.score, 0);
@@ -1280,13 +1282,13 @@ function submitExercise(distId) {
     return;
   }
 
+  if (!ui.exerciseDraft) ui.exerciseDraft = {};
   const answers = {};
   let missing = 0;
   dist.exerciseIds.forEach(id => {
-    const el = document.querySelector(`[data-ex-answer="${id}"]`);
-    const text = el ? el.value.trim() : '';
-    if (!text) missing++;
-    answers[id] = text;
+    const d = ui.exerciseDraft[id] || { text: '', images: [] };
+    if (!answerHasContent(d)) missing++;
+    answers[id] = { text: d.text || '', images: Array.isArray(d.images) ? d.images : [] };
   });
   if (missing) {
     toast(`还有 ${missing} 道题未作答`);
@@ -1477,8 +1479,85 @@ function selectOption(qid, index) {
 }
 
 function setShortAnswer(qid, value) {
-  ui.draft[qid] = value;
+  const cur = ui.draft[qid];
+  ui.draft[qid] = (cur && typeof cur === 'object') ? { text: value, images: cur.images || [] } : { text: value, images: [] };
 }
+
+/* ---------------- 照片作答 ---------------- */
+
+/** 压缩图片为 dataURL：最长边 1000px、JPEG 0.72，避免撑爆本地存储 */
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1000;
+        let width = img.width, height = img.height;
+        if (width > max || height > max) {
+          if (width >= height) { height = Math.round(height * max / width); width = max; }
+          else { width = Math.round(width * max / height); height = max; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.72)); }
+        catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** 取某题作答状态引用（统一升级为 { text, images } 对象） */
+function answerStateRef(kind, qid) {
+  if (kind === 'draft') {
+    const cur = ui.draft[qid];
+    if (!cur || typeof cur !== 'object') ui.draft[qid] = { text: cur == null ? '' : String(cur), images: [] };
+    return ui.draft[qid];
+  }
+  if (kind === 'redo') {
+    if (!ui.redo) return null;
+    const cur = ui.redo.answers[qid];
+    if (!cur || typeof cur !== 'object') ui.redo.answers[qid] = { text: cur == null ? '' : String(cur), images: [] };
+    return ui.redo.answers[qid];
+  }
+  if (kind === 'exercise') {
+    if (!ui.exerciseDraft) ui.exerciseDraft = {};
+    const cur = ui.exerciseDraft[qid];
+    if (!cur || typeof cur !== 'object') ui.exerciseDraft[qid] = { text: cur == null ? '' : String(cur), images: [] };
+    return ui.exerciseDraft[qid];
+  }
+  return null;
+}
+
+async function handleAnswerFiles(fileList, kind, qid) {
+  const ref = answerStateRef(kind, qid);
+  if (!ref) return;
+  const files = Array.from(fileList || []).filter(f => f && f.type && f.type.startsWith('image/'));
+  if (!files.length) return;
+  if (ref.images.length >= MAX_ANSWER_IMAGES) { toast(`每题最多上传 ${MAX_ANSWER_IMAGES} 张图片`); return; }
+  for (const f of files) {
+    if (ref.images.length >= MAX_ANSWER_IMAGES) { toast(`每题最多上传 ${MAX_ANSWER_IMAGES} 张图片`); break; }
+    try { ref.images.push(await compressImageFile(f)); }
+    catch (e) { toast('图片读取失败，请重试'); }
+  }
+  render();
+}
+
+function removeAnswerImage(kind, qid, idx) {
+  const ref = answerStateRef(kind, qid);
+  if (!ref || !Array.isArray(ref.images)) return;
+  ref.images.splice(Number(idx), 1);
+  render();
+}
+
+function openPreviewImage(src) { ui.previewImage = src || null; render(); }
+function closePreviewImage() { ui.previewImage = null; render(); }
 
 function startAssignment(id) {
   const assignment = A(id);
@@ -1506,10 +1585,7 @@ function submitAssignment(assignmentId) {
     return;
   }
 
-  const missing = assignment.questionIds.filter(qid => {
-    const value = ui.draft[qid];
-    return value === undefined || value === '' || value === null;
-  });
+  const missing = assignment.questionIds.filter(qid => !answerHasContent(ui.draft[qid]));
   if (missing.length) {
     toast(`还有 ${missing.length} 道题未作答`);
     return;
@@ -1533,7 +1609,19 @@ function submitAssignment(assignmentId) {
       scores[qid] = got;
       total += got;
     } else {
-      const review = mockAi.gradeShortAnswer(q, value);
+      const text = answerText(value);
+      const imgs = answerImages(value);
+      let review;
+      if (!text.trim() && imgs.length) {
+        const point = P(q.knowledgeId);
+        review = {
+          score: Math.round(q.score * 0.4),
+          comment: `已提交 ${imgs.length} 张作答图片，AI 暂不评阅图片内容，请教师查阅图片后给出最终评分。${citePoint(point)}`
+        };
+      } else {
+        review = mockAi.gradeShortAnswer(q, text);
+        if (imgs.length) review = { ...review, comment: `${review.comment}\n（另附 ${imgs.length} 张作答图片，教师可查阅）` };
+      }
       scores[qid] = review.score;
       aiReviews[qid] = review;
       total += review.score;

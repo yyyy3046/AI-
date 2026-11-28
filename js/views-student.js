@@ -845,6 +845,7 @@ function redoView() {
           </div>
           <span class="badge ${full ? 'success' : 'danger'}">${full ? '已订正' : '仍需巩固'}</span>
         </div>
+        ${q.type === 'short' ? `<div class="review-card" style="background:var(--surface-2)"><div class="review-head"><b>我的重做答案</b></div><div class="review-text">${answerDisplayHtml(item ? item.answer : '')}</div></div>` : ''}
         ${answerAndStepsHtml(q)}
       </div>`;
     }).join('');
@@ -887,7 +888,8 @@ function redoView() {
             <span class="key">${String.fromCharCode(65 + i)}</span>
             <span>${esc(opt)}</span>
           </div>`).join('')
-        : `<textarea class="textarea" data-act="redo-short" data-id="${q.id}" placeholder="重新写下你的答案与步骤…">${esc(value || '')}</textarea>`}
+        : `<textarea class="textarea" data-act="redo-short" data-id="${q.id}" placeholder="重新写下你的答案与步骤…">${esc(value || '')}</textarea>
+          ${answerImageBarHtml('redo', q.id, redo.answers[q.id])}`}
     </div>`;
   }).join('');
 
@@ -905,10 +907,30 @@ function redoView() {
   </div>`;
 }
 
+/* 照片作答上传条（作答阶段专用）：缩略图可删除/预览，label 触发相机或文件选择 */
+function answerImageBarHtml(kind, qid, value) {
+  const u = unwrapAnswer(value);
+  const thumbs = u.images.map((src, i) => `
+    <span class="ans-thumb-wrap">
+      <img class="ans-thumb" src="${src}" alt="作答图片" data-act="preview-image" data-src="${src}">
+      <button class="ans-thumb-del" data-act="remove-answer-image" data-kind="${kind}" data-id="${qid}" data-idx="${i}" title="删除">×</button>
+    </span>`).join('');
+  const canAdd = u.images.length < MAX_ANSWER_IMAGES;
+  return `<div class="ans-img-bar">
+    ${thumbs}
+    <label class="ans-img-add ${canAdd ? '' : 'disabled'}" title="${canAdd ? '拍照或从相册选择（移动端可直接调用相机）' : `最多 ${MAX_ANSWER_IMAGES} 张`}">
+      <input type="file" accept="image/*" capture="environment" multiple data-act="answer-file" data-kind="${kind}" data-id="${qid}" ${canAdd ? '' : 'disabled'}>
+      📷 拍照 / 上传图片
+    </label>
+    <span class="form-hint">可上传手写过程照片 · 文字与照片任选其一即可提交 · 最多 ${MAX_ANSWER_IMAGES} 张</span>
+  </div>`;
+}
+
 function exercisePlayerView(distId) {
   const dist = distributedOf(distId);
   if (!dist) return '<div class="empty">课后习题不存在</div>';
   const sub = myExerciseSubmission(distId);
+  if (!ui.exerciseDraft) ui.exerciseDraft = {};
 
   const head = `
     <div class="page-head">
@@ -937,9 +959,10 @@ function exercisePlayerView(distId) {
       ${sub
         ? `<div class="review-card" style="background:var(--surface-2)">
              <div class="review-head"><b>我的作答</b></div>
-             <div class="review-text">${esc(sub.answers[id] || '未作答')}</div>
+             <div class="review-text">${answerDisplayHtml(sub.answers[id])}</div>
            </div>`
-        : `<textarea class="textarea" data-ex-answer="${id}" placeholder="写出核心公式、符号含义与适用条件…" style="min-height:96px"></textarea>`}
+        : `<textarea class="textarea" data-act="ex-short-input" data-id="${id}" placeholder="写出核心公式、符号含义与适用条件…" style="min-height:96px">${esc((ui.exerciseDraft[id] || {}).text || '')}</textarea>
+          ${answerImageBarHtml('exercise', id, ui.exerciseDraft[id])}`}
     </div>`;
   }).join('');
 
@@ -1010,7 +1033,8 @@ function playerView(assignmentId) {
             <span class="key">${String.fromCharCode(65 + i)}</span>
             <span>${esc(opt)}</span>
           </div>`).join('')
-        : `<textarea class="textarea" data-act="short-input" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(value || '')}</textarea>`}
+        : `<textarea class="textarea" data-act="short-input" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(value || '')}</textarea>
+          ${answerImageBarHtml('draft', q.id, ui.draft[q.id])}`}
       <div class="q-actions">
         <button class="btn btn-sm btn-ai" data-act="open-tutor" data-id="${q.id}">🤖 问 AI 助教</button>
         <span class="form-hint" style="margin:0;align-self:center">提交前 AI 只给提示，不直接给答案</span>
@@ -1043,8 +1067,7 @@ function playerView(assignmentId) {
 }
 
 function answered(qid) {
-  const value = ui.draft[qid];
-  return value !== undefined && value !== null && value !== '';
+  return answerHasContent(ui.draft[qid]);
 }
 
 function resultView(assignment, sub) {
@@ -1075,7 +1098,7 @@ function resultView(assignment, sub) {
       }).join('') : `
         <div class="review-card" style="background:var(--surface-2)">
           <div class="review-head"><b>我的答案</b></div>
-          <div class="review-text">${esc(sub.answers[qid] || '未作答')}</div>
+          <div class="review-text">${answerDisplayHtml(sub.answers[qid])}</div>
         </div>`}
 
       ${answerAndStepsHtml(q)}

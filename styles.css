@@ -1562,3 +1562,22 @@ button.practice-item:hover { border-color: #B9C8FF; }
   .wrong-item-side { flex-direction: row; width: 100%; justify-content: flex-end; }
   .wrong-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* 学生 · 照片作答 */
+.ans-img-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ans-img-add { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px dashed var(--border); border-radius: 8px; background: var(--surface-2); color: var(--brand); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: .15s; }
+.ans-img-add:hover { border-color: var(--brand); background: var(--brand-soft); }
+.ans-img-add.disabled { opacity: .5; cursor: not-allowed; }
+.ans-img-add input { display: none; }
+.ans-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ans-thumb-wrap { position: relative; width: 84px; height: 84px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); flex-shrink: 0; }
+.ans-thumb { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; display: block; }
+.ans-thumb-idx { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+.ans-thumb-del { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff; font-size: 14px; line-height: 18px; cursor: pointer; display: grid; place-items: center; }
+.ans-thumb-del:hover { background: var(--danger); }
+
+/* 图片预览灯箱 */
+.preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); display: grid; place-items: center; z-index: 9999; padding: 24px; }
+.preview-body { position: relative; max-width: 92vw; max-height: 92vh; }
+.preview-body img { max-width: 92vw; max-height: 92vh; border-radius: 8px; display: block; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.preview-close { position: absolute; top: -14px; right: -14px; width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; color: #222; font-size: 20px; line-height: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.4); }

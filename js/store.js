@@ -23,6 +23,8 @@ const ui = {
   reviewDraft: null,
   reviewFilter: 'pending',
   draft: {},
+  exerciseDraft: {},
+  previewImage: null,
   aiChats: {},
   tutorQuestionId: null,
   prefillMessage: '',
@@ -105,6 +107,8 @@ function resetDb() {
   ui.reviewDraft = null;
   ui.reviewFilter = 'pending';
   ui.draft = {};
+  ui.exerciseDraft = {};
+  ui.previewImage = null;
   ui.aiChats = {};
   ui.gen = null;
   ui.activeExamId = null;
@@ -343,6 +347,27 @@ function distributedOf(id) {
 
 function myExerciseSubmission(distId) {
   return (db.exerciseSubmissions || []).find(s => s.distId === distId && s.studentId === 's1');
+}
+
+/* ---------------- 作答答案统一解析（兼容 string | {text, images}） ---------------- */
+const MAX_ANSWER_IMAGES = 3;
+
+/** 把任意形态的答案统一成 { text, images }，兼容旧数据的纯字符串 */
+function unwrapAnswer(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return {
+      text: value.text == null ? '' : String(value.text),
+      images: Array.isArray(value.images) ? value.images.filter(Boolean) : []
+    };
+  }
+  return { text: value == null ? '' : String(value), images: [] };
+}
+function answerText(value) { return unwrapAnswer(value).text; }
+function answerImages(value) { return unwrapAnswer(value).images; }
+/** 是否算“已作答”：有文字 或 有图片 均视为已作答 */
+function answerHasContent(value) {
+  const u = unwrapAnswer(value);
+  return u.text.trim() !== '' || u.images.length > 0;
 }
 
 /* ---------------- AI 能力 ---------------- */

@@ -496,6 +496,16 @@ document.addEventListener('click', event => {
       break;
     }
 
+    case 'remove-answer-image':
+      removeAnswerImage(target.dataset.kind, id, target.dataset.idx);
+      break;
+    case 'preview-image':
+      openPreviewImage(target.dataset.src);
+      break;
+    case 'close-preview':
+      closePreviewImage();
+      break;
+
     case 'jump': {
       const el = document.getElementById(`q-${id}`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -613,6 +623,23 @@ document.addEventListener('input', event => {
         if (dot) dot.classList.toggle('done', answered(qid));
       });
     }
+  }
+  if (el.dataset && el.dataset.act === 'ex-short-input' && el.dataset.id) {
+    if (!ui.exerciseDraft) ui.exerciseDraft = {};
+    const exId = el.dataset.id;
+    const cur = ui.exerciseDraft[exId];
+    ui.exerciseDraft[exId] = (cur && typeof cur === 'object')
+      ? { text: el.value, images: cur.images || [] }
+      : { text: el.value, images: [] };
+  }
+});
+
+/* 照片作答：文件选择后压缩入库，不重绘以保留输入焦点 */
+document.addEventListener('change', event => {
+  const el = event.target;
+  if (el.dataset && el.dataset.act === 'answer-file' && el.files && el.files.length) {
+    handleAnswerFiles(el.files, el.dataset.kind, el.dataset.id);
+    el.value = '';
   }
 });
 

@@ -269,7 +269,7 @@ function reviewView() {
         <div class="q-meta"><span>简答题 · ${shortQ.score} 分</span><span>·</span><span>AI 建议 ${generated ? generated.score : 0} 分</span></div>
         <div class="review-card" style="background:var(--surface-2)">
           <div class="review-head"><b>学生作答</b></div>
-          <div class="review-text">${esc(active.answers[shortQ.id] || '未作答')}</div>
+          <div class="review-text">${answerDisplayHtml(active.answers[shortQ.id])}</div>
         </div>
         ${generated ? `
         <div class="review-card ai">
