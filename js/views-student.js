@@ -987,6 +987,7 @@ function wrongBookView() {
         <div class="q-actions" style="margin:0">
           <button class="btn btn-sm btn-ghost" data-act="select-all-wrong">全选本课程</button>
           <button class="btn btn-sm btn-ghost" data-act="clear-wrong">清空</button>
+          <button class="btn btn-sm" data-act="export-wrong-pdf" ${selected.length ? '' : 'disabled'}>⬇ 导出 PDF 练习卷</button>
           <button class="btn btn-sm btn-primary" data-act="start-redo" ${selected.length ? '' : 'disabled'}>开始变式重做（举一反三）</button>
         </div>
       </div>

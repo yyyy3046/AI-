@@ -303,6 +303,9 @@ document.addEventListener('click', event => {
     case 'clear-wrong':
       clearWrongSelection();
       break;
+    case 'export-wrong-pdf':
+      exportWrongPdf();
+      break;
     case 'start-redo':
       startWrongRedo();
       break;
