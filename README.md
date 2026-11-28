@@ -16,6 +16,7 @@
 | 仓库地址 | <https://github.com/yyyy3046/AI-> |
 | 在线演示 | <https://37m8linnypcqptw28fy.traesite.cn> |
 | 单文件版 | `dist/知课AI-单文件版.html`（可直接双击打开，无需服务器） |
+| 开发过程留痕 | [`docs/开发留痕/`](docs/开发留痕/README.md)（开发过程记录 PDF、截图、需求与计划附件） |
 
 ## 核心功能
 
