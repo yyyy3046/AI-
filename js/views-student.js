@@ -186,6 +186,14 @@ function coursewareView() {
 }
 
 function aiChatView() {
+  const mode = ui.aiHomeMode === 'question' ? 'question' : 'textbook';
+  const tabs = `
+  <div class="ai-mode-tabs">
+    <button class="ai-mode-tab ${mode === 'textbook' ? 'active' : ''}" data-act="ai-home-mode" data-mode="textbook">📖 按教材问答</button>
+    <button class="ai-mode-tab ${mode === 'question' ? 'active' : ''}" data-act="ai-home-mode" data-mode="question">✍️ 按作业题问答</button>
+  </div>`;
+  if (mode === 'question') return renderAiHomeQuestion(tabs);
+
   const history = ui.aiHomeChat || [];
   const suggestions = [
     ...db.points.slice(0, 2).map(p => `「${p.title}」怎么理解？`),
@@ -235,6 +243,7 @@ function aiChatView() {
     </div>
     <span class="badge ai">课件依据</span>
   </div>
+  ${tabs}
 
   ${flatSections.length ? `
   <div class="ai-context">
@@ -281,6 +290,94 @@ function aiChatView() {
     <span>🔎</span>
     <div>你的提问会汇总到教师端「AI 提问」用作课堂讲评；不会在同学之间公开展示姓名。</div>
   </div>`;
+}
+
+/* AI 问答 · 按作业题问答模式 */
+function renderAiHomeQuestion(tabs) {
+  const questions = db.questions || [];
+  const selId = ui.aiHomeQuestionId && Q(ui.aiHomeQuestionId) ? ui.aiHomeQuestionId : (questions[0]?.id || null);
+  if (!ui.aiHomeQuestionId && selId) ui.aiHomeQuestionId = selId;
+  const q = selId ? Q(selId) : null;
+  const point = q ? P(q.knowledgeId) : null;
+  const chats = q ? (ui.aiChats[q.id] || []) : [];
+  const submitted = db.session.role === 'teacher' || !!mySubmission(assignmentOfQuestion(q?.id || '')?.id || '');
+
+  const qOptions = questions.map(item => {
+    const a = assignmentOfQuestion(item.id);
+    const prefix = a ? a.title + ' · ' : '';
+    const stem = (item.stem || '').replace(/\s+/g, ' ');
+    const label = (prefix + stem).slice(0, 34);
+    return `<option value="${item.id}" ${item.id === selId ? 'selected' : ''}>${esc(label)}${(prefix + stem).length > 34 ? '…' : ''}</option>`;
+  }).join('');
+
+  const bubbles = chats.map(c => {
+    const text = esc(c.text).replace(/\n/g, '<br>');
+    if (c.role === 'me') {
+      return `<div class="chat-msg user"><div class="chat-bubble">${text}</div></div>`;
+    }
+    return `
+    <div class="chat-msg bot">
+      <span class="chat-avatar">AI</span>
+      <div class="chat-bubble">
+        ${text}
+        ${point ? `<button class="cite-chip" data-act="open-courseware" data-page="${point.page}">查看教材第 ${point.page} 页 →</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <div>
+      <h1>AI 问答</h1>
+      <p>选择一道作业题，AI 助教只依据本课程课件给提示与讲解；提交后可查看完整解析</p>
+    </div>
+    <span class="badge ai">作业题答疑</span>
+  </div>
+  ${tabs}
+
+  ${q ? `
+  <div class="ai-context">
+    <div class="ai-context-main">
+      <span class="badge ai">当前题目</span>
+      <div><b>${esc(assignmentOfQuestion(q.id)?.title || '作业题')}</b><span>关联「${esc(point?.title || '')}」· 教材第 ${point?.page} 页</span></div>
+    </div>
+    <div class="ai-context-controls">
+      <select class="input ai-context-select" id="ai-home-question-select">
+        ${qOptions || '<option value="">（暂无题目）</option>'}
+      </select>
+    </div>
+  </div>
+
+  <div class="card q-stem-card">
+    <div class="q-stem">${esc(q.stem)}</div>
+    ${point ? `<div class="source-box" style="margin-top:10px"><b>📖 ${esc(db.courseware.fileName)} · 第 ${point.page} 页</b>${esc(point.excerpt || '')}</div>` : ''}
+  </div>
+
+  <div class="card chat-card">
+    <div class="chat-q-actions">
+      <button class="btn btn-sm" data-act="ai-home-hint" data-level="0">给我一点提示</button>
+      <button class="btn btn-sm" data-act="ai-home-hint" data-level="1">再提示一步</button>
+      <button class="btn btn-sm ${submitted ? '' : 'btn-ghost'}" data-act="ai-home-hint" data-level="2" ${submitted ? '' : 'disabled title="提交后可查看完整解析"'}>查看完整解析</button>
+      <button class="btn btn-sm btn-ghost" data-act="open-point-from-tutor" data-id="${q.knowledgeId}">查看知识点</button>
+    </div>
+    <div class="divider"></div>
+    <div class="chat-body">
+      ${chats.length ? bubbles : `
+      <div class="chat-welcome">
+        <span class="chat-avatar big">AI</span>
+        <b>针对这道题问答</b>
+        <p>我只依据本课程课件作答。提交前只给思路提示，不直接给答案；可以点上方按钮要提示，或在下方描述你卡在哪一步。</p>
+      </div>`}
+    </div>
+    <div class="chat-input">
+      <input class="input" id="ai-home-tutor-input" placeholder="描述你卡在哪一步…" autocomplete="off">
+      <button class="btn btn-primary" data-act="ai-home-tutor-send">发送</button>
+    </div>
+  </div>
+  ` : `
+  <div class="card"><div class="empty">当前课程暂无作业题</div></div>
+  `}
+  `;
 }
 
 function practiceView() {

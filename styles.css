@@ -904,6 +904,18 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .chat-msg.user .chat-bubble { background: var(--brand); border-color: var(--brand); color: #fff; }
 .chat-suggest { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* AI 问答：模式切换 + 作业题面板 */
+.ai-mode-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.ai-mode-tab {
+  padding: 7px 16px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2); font-size: 13px;
+  cursor: pointer; font-family: inherit; transition: all .15s ease;
+}
+.ai-mode-tab:hover { border-color: var(--brand); color: var(--brand); }
+.ai-mode-tab.active { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.q-stem-card { margin-bottom: 14px; }
+.chat-q-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .cite-chip {
   display: inline-flex; align-items: center; gap: 4px; margin-top: 8px;
   border: 1px solid var(--brand); background: var(--brand-soft); color: var(--brand);

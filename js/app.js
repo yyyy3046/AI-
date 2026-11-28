@@ -461,6 +461,15 @@ document.addEventListener('click', event => {
     case 'ai-suggest':
       askAiHome(target.dataset.text);
       break;
+    case 'ai-home-mode':
+      setAiHomeMode(target.dataset.mode);
+      break;
+    case 'ai-home-hint':
+      askHint(Number(target.dataset.level), ui.aiHomeQuestionId);
+      break;
+    case 'ai-home-tutor-send':
+      sendAiHomeTutor();
+      break;
 
     case 'start-assignment':
       startAssignment(id);
@@ -607,6 +616,10 @@ document.addEventListener('keydown', event => {
     event.preventDefault();
     sendAiHome();
   }
+  if (event.key === 'Enter' && event.target.id === 'ai-home-tutor-input') {
+    event.preventDefault();
+    sendAiHomeTutor();
+  }
   if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && event.target.id === 'reply-input') {
     event.preventDefault();
     sendReply(ui.activeMessageId, event.target.value);
@@ -617,6 +630,10 @@ document.addEventListener('keydown', event => {
 document.addEventListener('change', event => {
   if (event.target.id === 'ai-page-select') {
     setAiPage(event.target.value);
+    return;
+  }
+  if (event.target.id === 'ai-home-question-select') {
+    setAiHomeQuestion(event.target.value);
     return;
   }
   if (event.target.id === 'ppt-input') {

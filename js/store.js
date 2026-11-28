@@ -38,6 +38,8 @@ const ui = {
   aiSection: null,
   pptPreviewPage: null,
   aiHomeChat: [],
+  aiHomeMode: 'textbook',
+  aiHomeQuestionId: null,
   activeAiQuestionId: null,
   scanOpen: false,
   courseModalOpen: false,
@@ -108,6 +110,8 @@ function resetDb() {
   ui.tbTab = 'examples';
   ui.exSelected = [];
   ui.aiHomeChat = [];
+  ui.aiHomeMode = 'textbook';
+  ui.aiHomeQuestionId = null;
   ui.activeAiQuestionId = null;
   ui.scanOpen = false;
   ui.courseModalOpen = false;

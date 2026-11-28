@@ -396,6 +396,8 @@ function switchStudentCourse(courseId, silent) {
   ui.practiceItem = null;
   ui.prefillMessage = '';
   ui.aiHomeChat = [];
+  ui.aiHomeMode = 'textbook';
+  ui.aiHomeQuestionId = null;
   ui.redo = null;
   ui.wrongSelected = [];
   ui.wrongPointFilter = '';
@@ -1727,8 +1729,8 @@ function closeTutor() {
   render();
 }
 
-function askHint(level) {
-  const qid = ui.tutorQuestionId;
+function askHint(level, qid) {
+  qid = qid || ui.tutorQuestionId;
   if (!qid) return;
   const q = Q(qid);
   const chats = ui.aiChats[qid] || (ui.aiChats[qid] = []);
@@ -1737,12 +1739,32 @@ function askHint(level) {
   render();
 }
 
-function askTutor(text) {
-  const qid = ui.tutorQuestionId;
+function askTutor(text, qid) {
+  qid = qid || ui.tutorQuestionId;
   if (!qid) return;
   const q = Q(qid);
   const chats = ui.aiChats[qid] || (ui.aiChats[qid] = []);
   chats.push({ role: 'me', text });
   chats.push({ role: 'ai', text: mockAi.reply(q, text) });
   render();
+}
+
+function setAiHomeMode(mode) {
+  ui.aiHomeMode = mode === 'question' ? 'question' : 'textbook';
+  render();
+}
+
+function setAiHomeQuestion(qid) {
+  if (!Q(qid)) return;
+  ui.aiHomeQuestionId = qid;
+  if (!ui.aiChats[qid]) ui.aiChats[qid] = [];
+  render();
+}
+
+function sendAiHomeTutor() {
+  const input = document.getElementById('ai-home-tutor-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  askTutor(text, ui.aiHomeQuestionId);
 }
