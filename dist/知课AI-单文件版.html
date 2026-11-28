@@ -2935,6 +2935,7 @@ const ui = {
   pptPage: null,
   aiPage: null,
   aiSection: null,
+  aiPagePicked: false, // 用户是否主动选过页/小节（默认页不算）
   pptPreviewPage: null,
   aiHomeChat: [],
   aiHomeMode: 'textbook',
@@ -3013,6 +3014,12 @@ function resetDb() {
   ui.reviewFilter = 'pending';
   ui.draft = {};
   ui.exerciseDraft = {};
+  ui.practice = null;
+  ui.practiceCourse = 'math';
+  ui.practicePoint = '';
+  ui.practiceDifficulty = '';
+  ui.practiceCount = 5;
+  ui.practiceGenLoading = false;
   ui.previewImage = null;
   ui.aiChats = {};
   ui.gen = null;
@@ -3047,7 +3054,21 @@ function resetDb() {
 /* ---------------- 查询辅助 ---------------- */
 
 const Q = id => db.questions.find(q => q.id === id);
-const P = id => db.points.find(p => p.id === id);
+/* 先查当前激活课程的知识点；未命中则回退到全部课程（支撑跨课程自主练习） */
+function P(id) {
+  if (!id) return null;
+  const direct = db.points.find(p => p.id === id);
+  if (direct) return direct;
+  const courses = db.courses || {};
+  for (const cid of Object.keys(courses)) {
+    const pts = courses[cid] && courses[cid].points;
+    if (Array.isArray(pts)) {
+      const f = pts.find(p => p.id === id);
+      if (f) return f;
+    }
+  }
+  return null;
+}
 const A = id => db.assignments.find(a => a.id === id);
 
 function chapterOf(chapterId) {
@@ -3114,6 +3135,24 @@ function quizRemaining(assignment) {
   const startedAt = db.quizStart && db.quizStart[assignment.id];
   if (!startedAt) return null;
   return Math.round(assignment.duration * 60 - (Date.now() - startedAt) / 1000);
+}
+
+/* 从课程真题库按知识点 / 难度过滤并随机抽样 */
+function sampleExamQuestions(courseId, opts) {
+  const data = db.courses && db.courses[courseId];
+  const pool = (data && Array.isArray(data.examQuestions)) ? data.examQuestions.slice() : [];
+  const o = opts || {};
+  let list = pool.filter(q => {
+    if (o.pointId && q.knowledgeId !== o.pointId) return false;
+    if (o.difficulty && q.difficulty !== o.difficulty) return false;
+    return true;
+  });
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  const count = Math.max(1, Math.min(20, Number(o.count) || 5));
+  return list.slice(0, count);
 }
 
 function submissionOf(subId) {
@@ -3950,6 +3989,9 @@ function switchStudentCourse(courseId, silent) {
   ui.aiHomeChat = [];
   ui.aiHomeMode = 'textbook';
   ui.aiHomeQuestionId = null;
+  ui.aiPage = null;
+  ui.aiSection = null;
+  ui.aiPagePicked = false;
   ui.redo = null;
   ui.wrongSelected = [];
   ui.wrongPointFilter = '';
@@ -4870,22 +4912,87 @@ function submitExercise(distId) {
 
 /* ---------------- 学生 AI 问答（汇总给教师端） ---------------- */
 
-function matchPointByText(text) {
-  let best = null;
-  let bestLength = 0;
-  db.points.forEach(point => {
-    const words = [point.title, ...point.title.split(/[·、，,（）()\s]/)].filter(w => w && w.length >= 2);
-    words.forEach(word => {
-      if (text.includes(word) && word.length > bestLength) {
-        best = point;
-        bestLength = word.length;
-      }
-    });
-  });
-  return best;
+/* ---------------- 学生 AI 问答：知识点匹配（打分制） ---------------- */
+
+// 主命中阈值：达到该分数才视为"教材覆盖"；低于则诚实返回未覆盖，不再硬塞无关知识点
+const AI_MATCH_THRESHOLD = 2;
+
+// 提问中常见的无意义词，提取关键词时忽略
+const AI_STOPWORDS = new Set([
+  '什么', '怎么', '怎样', '如何', '为什么', '为何', '请问', '一下', '讲讲', '解释', '说明', '介绍',
+  '定义', '概念', '内容', '意思', '含义', '相关', '有关', '关于', '这个', '那个', '这些', '哪些', '哪个',
+  '我', '你', '他', '她', '它', '的', '了', '和', '与', '或', '吗', '呢', '啊', '吧', '呀', '求', '证明', '判断'
+]);
+
+// 把知识点标题拆成有意义的词块（≥2字）
+function splitAiTitle(t) {
+  return String(t || '').split(/[·、，,（）()\s\/:：]+/).filter(w => w && w.length >= 2);
 }
 
-function aiHomeReply(text, page) {
+// 从问题文本提取关键词：中文 2~8 字连续片段 + 英文单词，去停用词去重
+function extractAiKeywords(text) {
+  const raw = String(text || '').toLowerCase();
+  const segs = raw.match(/[\u4e00-\u9fa5]{2,8}|[a-zA-Z][a-zA-Z0-9]*/g) || [];
+  const out = [], seen = new Set();
+  for (const s of segs) {
+    if (AI_STOPWORDS.has(s) || s.length < 2) continue;
+    if (!seen.has(s)) { seen.add(s); out.push(s); }
+  }
+  return out;
+}
+
+// 汇总一个知识点的可匹配内容，分域以区分权重
+function pointMatchFields(point) {
+  const where = sectionTitleOfPoint(point);
+  return {
+    title:   [point.title, ...splitAiTitle(point.title)].join(' '),
+    chapter: where.chapter || '',
+    section: where.section || '',
+    body:    [point.summary, point.excerpt, point.example].filter(Boolean).join(' '),
+    formula: (point.formulas || []).join(' '),
+    param:   (point.params || []).map(p => [p.sym, p.name, p.desc].join(' ')).join(' '),
+    syms:    (point.params || []).map(p => p.sym).filter(Boolean)
+  };
+}
+
+/**
+ * 打分匹配：返回 [{ point, score }]，按分数降序。
+ * 命中维度（权重）：标题(3) > 章节/小节、摘要/原文/例题(2) > 公式/参数(1)；
+ * 另加反向命中（知识点标题词出现在问题里，2）与单符号命中（如 ε、δ、∞，1）。
+ */
+function matchPointsByText(text) {
+  const kws = extractAiKeywords(text);
+  const low = String(text || '').toLowerCase();
+  const rows = [];
+  for (const point of db.points) {
+    const f = pointMatchFields(point);
+    let score = 0;
+    for (const kw of kws) {
+      if (f.title.includes(kw)) score += 3;
+      if (f.chapter.includes(kw) || f.section.includes(kw)) score += 2;
+      if (f.body.includes(kw)) score += 2;
+      if (f.formula.includes(kw)) score += 1;
+      if (f.param.includes(kw)) score += 1;
+    }
+    for (const w of splitAiTitle(point.title)) {
+      if (low.includes(w.toLowerCase())) score += 2;
+    }
+    for (const sym of f.syms) {
+      if (sym && (text || '').includes(sym)) score += 1;
+    }
+    if (score > 0) rows.push({ point, score });
+  }
+  rows.sort((a, b) => b.score - a.score);
+  return rows;
+}
+
+// 兼容旧调用：取最高分知识点（无命中返回 null）
+function matchPointByText(text) {
+  const rows = matchPointsByText(text);
+  return rows.length ? rows[0].point : null;
+}
+
+function aiHomeReply(text, page, pagePicked) {
   const pagePoints = page ? db.points.filter(point => point.page === Number(page)) : [];
   if (/练习题|来一道|出题|考考我/.test(text)) {
     const question = db.questions.find(q => q.type === 'single' && pagePoints.some(point => point.id === q.knowledgeId))
@@ -4907,21 +5014,38 @@ function aiHomeReply(text, page) {
     };
   }
 
-  const matched = matchPointByText(text);
-  const point = matched || pagePoints[0];
+  const rows = matchPointsByText(text);
+  const hit = rows.find(r => r.score >= AI_MATCH_THRESHOLD);
+  const related = rows
+    .filter(r => r.score >= AI_MATCH_THRESHOLD && (!hit || r.point.id !== hit.point.id))
+    .slice(0, 2);
+
+  // 主命中用最高分知识点；未命中时仅在「用户主动选了页」且满足弱相关/指示词条件下退化到当前页，否则诚实返回未覆盖
+  const matched = !!hit;
+  let point = hit ? hit.point : null;
+  if (!point && pagePicked && pagePoints.length) {
+    const pageBest = pagePoints
+      .map(p => ({ p, s: (rows.find(r => r.point.id === p.id) || { score: 0 }).score }))
+      .sort((a, b) => b.s - a.s)[0];
+    const hintsThisPage = /这页|本节|本页|当前页|这一节|这一章|讲什么|讲了什么|说什么|什么内容/.test(text);
+    if ((pageBest && pageBest.s > 0) || hintsThisPage) point = pageBest ? pageBest.p : pagePoints[0];
+  }
+
   if (!point) {
     return {
       pointId: null,
       page: null,
       grounded: false,
       source: null,
-      answer: `教材（第一章第四、五节，P13—24）中没有检索到与「${text}」直接对应的定义或例题。\n为避免给出超出教材的说法，我不做额外发挥；建议换用教材中的术语提问，或直接向老师确认。`
+      relatedPointIds: [],
+      answer: `教材（${db.course.name} 当前收录章节）中没有检索到与「${text}」直接对应的知识点。\n为避免给出超出教材的说法，我不做额外发挥；建议换用教材中的术语提问，或直接向老师确认。`
     };
   }
   return {
     pointId: point.id,
     page: point.page,
     grounded: true,
+    relatedPointIds: related.map(r => r.point.id),
     source: {
       page: point.page,
       title: point.title,
@@ -4938,10 +5062,20 @@ function aiHomeReply(text, page) {
  * 教材问答：把匹配到的知识点内容作为【教材片段】喂给模型，
  * 约束其严格依据教材、标注页码；history 已包含当前用户提问（含多轮上下文）。
  */
-function buildTextbookMessages(history, point, page) {
+function buildTextbookMessages(history, point, page, relatedPoints) {
   const messages = [];
   if (point) {
     const where = sectionTitleOfPoint(point);
+    const extras = (relatedPoints || [])
+      .filter(p => p && p.id !== point.id)
+      .slice(0, 2)
+      .map(p => {
+        const w = sectionTitleOfPoint(p);
+        return `- 第 ${p.page} 页「${p.title}」（${w.section || ''}）：${p.summary || ''}`;
+      });
+    const extrasBlock = extras.length
+      ? [`【相关补充知识点】`, ...extras, `（仅在与学生问题相关时参考，主回答以上方主知识点为准）`]
+      : [];
     messages.push({
       role: 'system',
       content: [
@@ -4958,9 +5092,10 @@ function buildTextbookMessages(history, point, page) {
         point.params && point.params.length ? `符号说明：${point.params.map(p => `${p.sym} 表示${p.name}`).join('；')}` : '',
         point.excerpt ? `教材原文：${point.excerpt}` : '',
         ``,
+        ...extrasBlock,
         `回答要求：`,
         `1. 用中文，先给结论再展开，分点清晰。`,
-        `2. 只能依据上述教材片段；如果学生的问题在片段中没有依据，直接说明“教材未覆盖该内容”，不要猜测或发挥。`,
+        `2. 只能依据上述教材片段（含相关补充）；如果学生的问题在这些内容中没有依据，直接说明“教材未覆盖该内容”，不要猜测或发挥。`,
         `3. 在回答中自然提及“第 ${point.page} 页「${point.title}」”，方便学生回到原文核对。`,
         `4. 不要整段复述教材原文，页面会单独展示原文卡片。`
       ].filter(Boolean).join('\n')
@@ -5051,6 +5186,7 @@ function aiCurrentPage() {
 function setAiPage(page) {
   const value = Number(page) || null;
   ui.aiPage = value;
+  ui.aiPagePicked = true;
   const section = aiSectionChoices().find(item => item.pages.includes(value));
   if (section) ui.aiSection = section.section.id;
   render();
@@ -5061,6 +5197,7 @@ function setAiSection(sectionId) {
   if (!section) return;
   ui.aiSection = sectionId;
   ui.aiPage = section.pages[0] || null;
+  ui.aiPagePicked = true;
   render();
 }
 
@@ -5077,7 +5214,7 @@ async function askAiHome(text) {
     return false;
   }
   const page = aiCurrentPage();
-  const reply = aiHomeReply(question, page); // 复用现有匹配逻辑：拿到知识点/页码/原文/兜底回答
+  const reply = aiHomeReply(question, page, !!ui.aiPagePicked); // 复用现有匹配逻辑：拿到知识点/页码/原文/兜底回答
 
   ui.aiHomeChat.push({ role: 'user', text: question });
   const pendingMsg = {
@@ -5094,7 +5231,8 @@ async function askAiHome(text) {
   let usedLLM = false;
   if (llmReady() && !reply.skipLLM) {
     const point = reply.pointId ? P(reply.pointId) : null;
-    const messages = buildTextbookMessages(ui.aiHomeChat, point, page);
+    const relatedPoints = (reply.relatedPointIds || []).map(P).filter(Boolean);
+    const messages = buildTextbookMessages(ui.aiHomeChat, point, page, relatedPoints);
     const res = await callLLM({ messages, temperature: 0.5, maxTokens: 900 });
     if (res.ok && res.text.trim()) {
       answerText = res.text.trim();
@@ -5207,6 +5345,13 @@ function answerStateRef(kind, qid) {
     const cur = ui.exerciseDraft[qid];
     if (!cur || typeof cur !== 'object') ui.exerciseDraft[qid] = { text: cur == null ? '' : String(cur), images: [] };
     return ui.exerciseDraft[qid];
+  }
+  if (kind === 'practice') {
+    if (!ui.practice) return null;
+    if (!ui.practice.answers) ui.practice.answers = {};
+    const cur = ui.practice.answers[qid];
+    if (!cur || typeof cur !== 'object') ui.practice.answers[qid] = { text: cur == null ? '' : String(cur), images: [] };
+    return ui.practice.answers[qid];
   }
   return null;
 }
@@ -5323,6 +5468,188 @@ async function gradeShortAnswerLLM(q, text, images) {
   const comment = String(obj.comment || '').trim().slice(0, 300) || local().comment;
   const steps = Array.isArray(obj.steps) ? obj.steps.map(String).slice(0, 8) : [];
   return { score, comment, steps, usedLLM: true, usedVision: useVision };
+}
+
+/* ---------------- 自主练习（真题库抽题 + AI 现场出题） ---------------- */
+
+function firstPracticePoint(courseId) {
+  const eq = db.courses[courseId] && db.courses[courseId].examQuestions;
+  return (eq && eq[0] && eq[0].knowledgeId) || (db.points[0] && db.points[0].id) || '';
+}
+
+/** 从模型返回中提取题目 JSON 数组（兼容 [...] 与 {"questions":[...]}） */
+function parseQuestionArray(text) {
+  if (typeof text !== 'string') return [];
+  const obj = extractJsonObject(text);
+  if (obj && Array.isArray(obj.questions)) return obj.questions;
+  const i = text.indexOf('[');
+  const j = text.lastIndexOf(']');
+  if (i >= 0 && j > i) {
+    try { const a = JSON.parse(text.slice(i, j + 1)); return Array.isArray(a) ? a : []; } catch (e) { /* ignore */ }
+  }
+  return [];
+}
+
+function normalizeAiQuestion(raw, idx, courseId, pointId, difficulty) {
+  if (!raw || typeof raw !== 'object') return null;
+  const type = raw.type === 'short' ? 'short' : 'single';
+  const stem = String(raw.stem || '').trim();
+  if (!stem) return null;
+  const q = {
+    id: `ai-${Date.now()}-${idx}`,
+    type, stem,
+    source: 'AI生成',
+    difficulty: difficulty || raw.difficulty || '基础',
+    knowledgeId: pointId || firstPracticePoint(courseId)
+  };
+  if (type === 'single') {
+    const options = Array.isArray(raw.options) ? raw.options.map(o => String(o).trim()).filter(Boolean) : [];
+    if (options.length < 2) return null;
+    let ans = Number(raw.answer);
+    if (!Number.isInteger(ans) || ans < 0 || ans >= options.length) return null;
+    q.options = options.slice(0, 6);
+    q.answer = ans;
+    q.score = Math.max(1, Math.min(30, Math.round(Number(raw.score) || 5)));
+    q.reference = '';
+    q.keywords = [];
+  } else {
+    const ref = String(raw.reference != null ? raw.reference : raw.answer).trim();
+    if (!ref) return null;
+    q.options = [];
+    q.answer = null;
+    q.reference = ref;
+    q.keywords = Array.isArray(raw.keywords) ? raw.keywords.map(k => String(k).trim()).filter(Boolean).slice(0, 8) : [];
+    q.score = Math.max(1, Math.min(30, Math.round(Number(raw.score) || 10)));
+  }
+  return q;
+}
+
+async function generateAiQuestions(courseId, pointId, difficulty, count) {
+  if (!llmReady()) return { ok: false, reason: 'not-configured' };
+  const n = Math.max(1, Math.min(5, Number(count) || 3));
+  const course = db.courses[courseId] && db.courses[courseId].course;
+  const point = pointId ? P(pointId) : null;
+  const diff = difficulty || '基础';
+  const system = `你是高校「${course && course.name ? course.name : ''}」课程的命题专家。请严格只输出一个 JSON 数组，不要输出任何解释、代码块标记或多余文字。数组每个元素结构如下：
+{"type":"single 或 short","stem":"题干文本","options":["选项A","选项B","选项C","选项D"],"answer":单选填正确选项的索引整数(从0开始)，简答填标准答案要点字符串,"score":单选5或简答10,"keywords":["得分关键词1","得分关键词2"],"reference":"简答题的标准答案与要点，单选填空字符串"}`;
+  const user = `请生成 ${n} 道${diff}难度的练习题${point ? `，围绕知识点「${point.title}」（课件第 ${point.page} 页）` : '，覆盖本课程核心知识点'}。单选与简答均可，题干要清晰可判分。只返回 JSON 数组。`;
+  let res;
+  try {
+    res = await callLLM({ messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature: 0.7, maxTokens: 1500 });
+  } catch (e) {
+    return { ok: false, reason: 'error', error: String(e) };
+  }
+  if (!res.ok) return { ok: false, reason: res.reason, error: res.error };
+  const arr = parseQuestionArray(res.text);
+  const questions = [];
+  arr.forEach((raw, idx) => {
+    const q = normalizeAiQuestion(raw, idx, courseId, pointId, diff);
+    if (q) questions.push(q);
+  });
+  return { ok: true, questions };
+}
+
+function startPracticePaper(questions, courseId) {
+  const list = (questions || []).filter(Boolean);
+  if (!list.length) { toast('没有可用的题目，请调整筛选条件'); return; }
+  const answers = {};
+  list.forEach(q => { answers[q.id] = { text: '', images: [] }; });
+  ui.practice = { courseId, questions: list, answers, result: null, at: Date.now() };
+  location.hash = '#/student/practice-play';
+  render();
+}
+
+function buildPracticeExam() {
+  const courseId = ui.practiceCourse || 'math';
+  const qs = sampleExamQuestions(courseId, {
+    pointId: ui.practicePoint || '',
+    difficulty: ui.practiceDifficulty || '',
+    count: ui.practiceCount || 5
+  });
+  startPracticePaper(qs, courseId);
+}
+
+async function buildPracticeAi() {
+  if (!llmReady()) { toast('请先在右上角「模型」中配置可用的大模型'); render(); return; }
+  const courseId = ui.practiceCourse || 'math';
+  ui.practiceGenLoading = true;
+  render();
+  const res = await generateAiQuestions(courseId, ui.practicePoint || '', ui.practiceDifficulty || '', ui.practiceCount || 5);
+  ui.practiceGenLoading = false;
+  if (!res.ok) { toast('AI 出题失败，请稍后重试或检查模型配置'); render(); return; }
+  if (!res.questions.length) { toast('AI 未返回有效题目，请重试'); render(); return; }
+  startPracticePaper(res.questions, courseId);
+}
+
+function setPracticeOption(qid, index) {
+  const ref = answerStateRef('practice', qid);
+  if (!ref) return;
+  ref.text = String(index);
+  render();
+}
+
+function setPracticeShort(qid, value) {
+  const ref = answerStateRef('practice', qid);
+  if (!ref) return;
+  ref.text = value;
+}
+
+async function submitPractice() {
+  const paper = ui.practice;
+  if (!paper || paper.result) return;
+  const items = [];
+  for (const q of paper.questions) {
+    const value = paper.answers[q.id] || { text: '', images: [] };
+    let score, review = null;
+    if (q.type === 'single') {
+      const t = answerText(value).trim();
+      score = (t !== '' && Number(t) === q.answer) ? q.score : 0;
+    } else {
+      review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
+      score = review.score;
+    }
+    items.push({ qid: q.id, score, max: q.score, answer: value, review });
+  }
+  const total = items.reduce((s, it) => s + it.score, 0);
+  const max = items.reduce((s, it) => s + it.max, 0);
+  paper.result = { total, max, items };
+  if (!Array.isArray(db.practiceRecords)) db.practiceRecords = [];
+  db.practiceRecords.unshift({
+    id: `pr-${Date.now()}`,
+    courseId: paper.courseId,
+    studentId: db.session.userId || 's1',
+    studentName: STUDENT_ACCOUNT.name,
+    at: nowStamp(),
+    total, max,
+    questions: JSON.parse(JSON.stringify(paper.questions)),
+    items
+  });
+  saveDb();
+  render();
+  toast(`练习完成，得分 ${total} / ${max}`);
+}
+
+function openPracticeRecord(id) {
+  const rec = (db.practiceRecords || []).find(r => r.id === id);
+  if (!rec) return;
+  const answers = {};
+  (rec.items || []).forEach(it => { answers[it.qid] = it.answer || { text: '', images: [] }; });
+  ui.practice = {
+    courseId: rec.courseId,
+    questions: JSON.parse(JSON.stringify(rec.questions || [])),
+    answers,
+    result: { total: rec.total, max: rec.max, items: rec.items },
+    at: rec.at,
+    historyId: rec.id
+  };
+  location.hash = '#/student/practice-play';
+  render();
+}
+
+function exitPractice() {
+  ui.practice = null;
+  location.hash = '#/student/practice-self';
+  render();
 }
 
 function startAssignment(id) {
@@ -5714,17 +6041,35 @@ function saveLlmSettings() {
   new FormData(f).forEach((v, k) => { data[k] = v; });
   const baseUrl = String(data.baseUrl || '').trim();
   const model = String(data.model || '').trim();
+  const visionBaseUrl = String(data.visionBaseUrl || '').trim();
+  const visionModel = String(data.visionModel || '').trim();
   if (!/^https?:\/\//i.test(baseUrl)) { toast('Base URL 需以 http(s):// 开头'); return; }
   if (!model) { toast('模型名称不能为空'); return; }
+  if (visionBaseUrl && !/^https?:\/\//i.test(visionBaseUrl)) { toast('视觉 Base URL 需以 http(s):// 开头'); return; }
   saveLlmConfig({
     enabled: data.enabled === 'on',
     baseUrl,
     model,
-    apiKey: String(data.apiKey || '')
+    apiKey: String(data.apiKey || ''),
+    visionBaseUrl,
+    visionModel
   });
   toast('已保存 AI 模型配置');
   ui.llmSettingsOpen = false;
   render();
+}
+
+async function testLlmVisionConnection() {
+  if (!llmReady()) { toast('请先填写文本模型的 Base URL、模型名称和 API Key'); return; }
+  toast('正在测试视觉连接…');
+  const res = await callLLM({
+    useVision: true,
+    messages: [{ role: 'user', content: '只回复四个字：视觉就绪' }],
+    temperature: 0,
+    maxTokens: 20
+  });
+  if (res.ok) toast(`视觉连接成功：${(res.text || '').trim().slice(0, 30)}`);
+  else toast(`视觉连接失败（${res.reason}）：${(res.error || '').slice(0, 60)}`);
 }
 
 function clearLlmSettingsAction() {
@@ -5894,6 +6239,7 @@ const NAV_TEACHER = [
 
 const NAV_STUDENT = [
   { key: 'practice', icon: '✍️', label: '课堂与作业' },
+  { key: 'practice-self', icon: '🎯', label: '自主练习' },
   { key: 'learn', icon: '🧭', label: '知识导图' },
   { key: 'wrong', icon: '🧾', label: '错题本' },
   { key: 'ai', icon: '🤖', label: 'AI 问答' },
@@ -5913,6 +6259,7 @@ const TITLES = {
   'teacher/analytics': ['学情看板', '班级提交、正确率与知识点掌握情况'],
   'student/learn': ['知识导图', '点击章节与知识点，查看公式与课件来源'],
   'student/practice': ['课堂与作业', '完成课堂问答与课后作业'],
+  'student/practice-self': ['自主练习', '从真题库抽题或让 AI 现场出题，即时判分并记录练习历史'],
   'student/wrong': ['错题本', '按科目汇总错题，勾选后可重新做一遍'],
   'student/ai': ['AI 问答', '基于课件的 AI 答疑，提问会汇总给老师讲评'],
   'student/messages': ['私信与问答', '向老师提问，或匿名分享给全班']
@@ -6522,6 +6869,19 @@ function llmSettingsModal() {
             <input class="input" type="password" name="apiKey" id="llm-key-input" value="${esc(cfg.apiKey)}" placeholder="粘贴 Key；Agnes 请到 platform.agnes-ai.cn 生成">
             <button type="button" class="btn btn-ghost" data-act="llm-toggle-key" id="llm-key-toggle">显示</button>
           </div>
+        </div>
+        <div class="divider"></div>
+        <div class="field">
+          <label>视觉模型（选填 · 用于识别手写照片）</label>
+          <div class="llm-row" style="margin-bottom:8px">
+            <span>手写照片识别状态</span>
+            <span class="badge ${llmVisionReady() ? 'success' : 'warning'}" style="margin-left:auto">${llmVisionReady() ? '视觉可用 · 将识别手写照片' : '未单独配置 · 与文本模型共用'}</span>
+          </div>
+          <input class="input" name="visionBaseUrl" value="${esc(cfg.visionBaseUrl || '')}" placeholder="视觉 API Base URL，留空则使用上方地址">
+          <div style="height:8px"></div>
+          <input class="input" name="visionModel" value="${esc(cfg.visionModel || '')}" placeholder="视觉模型名，如 qwen-vl-plus、openai/gpt-4o-mini；留空则使用上方模型">
+          <div class="form-hint" style="margin-top:6px">配置后，学生上传手写解题照片时，视觉模型会识别照片内容并参与主观题判分；未配置时只评阅文本框内容（照片仍保存供教师查阅）。API Key 默认与上方共用。</div>
+          <div style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="llm-vision-test">测试视觉连接</button></div>
         </div>
       </form>
     </div>
@@ -8448,6 +8808,195 @@ function renderAiHomeQuestion(tabs) {
   `;
 }
 
+/* 某门课真题库覆盖的知识点（用于自主练习筛选） */
+function practiceCoursePoints(courseId) {
+  const eq = (db.courses[courseId] && db.courses[courseId].examQuestions) || [];
+  const ids = [];
+  eq.forEach(q => { if (q.knowledgeId && !ids.includes(q.knowledgeId)) ids.push(q.knowledgeId); });
+  return ids.map(id => P(id)).filter(Boolean);
+}
+
+function practiceSelfView() {
+  const courseId = ui.practiceCourse || 'math';
+  const points = practiceCoursePoints(courseId);
+  const ready = llmReady();
+  const records = (db.practiceRecords || []).filter(r => r.studentId === (db.session.userId || 's1'));
+
+  const courseChips = Object.keys(db.courses).map(id => `
+    <button class="chip-btn ${courseId === id ? 'active' : ''}" data-act="practice-course" data-id="${id}">${esc(db.courses[id].course.name)}</button>
+  `).join('');
+
+  const diffChips = [['', '全部'], ['基础', '基础'], ['提高', '提高']].map(([v, l]) => `
+    <button class="chip-btn ${(ui.practiceDifficulty || '') === v ? 'active' : ''}" data-act="practice-difficulty" data-level="${v}">${l}</button>
+  `).join('');
+
+  const pointChips = `
+    <button class="chip-btn ${!ui.practicePoint ? 'active' : ''}" data-act="practice-point" data-id="">全部知识点</button>
+    ${points.map(p => `<button class="chip-btn ${ui.practicePoint === p.id ? 'active' : ''}" data-act="practice-point" data-id="${p.id}">${esc(p.title)}</button>`).join('')}
+  `;
+
+  const historyHtml = records.length ? records.map(r => {
+    const cname = (db.courses[r.courseId] && db.courses[r.courseId].course.name) || r.courseId;
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">
+      <div><b>${esc(cname)}</b><div class="sub">${esc(r.at)}</div></div>
+      <span class="badge ${r.total >= r.max * 0.6 ? 'success' : 'warning'}">${r.total} / ${r.max}</span>
+      <button class="btn btn-sm btn-ghost" data-act="open-practice-record" data-id="${r.id}">查看</button>
+    </div>`;
+  }).join('') : '<div class="empty">还没有练习记录，组卷后开始第一次练习吧</div>';
+
+  return `
+  <div class="practice-layout">
+    <div>
+      <div class="card">
+        <div class="card-head"><h2>🎯 组卷设置</h2></div>
+        <div class="card-body">
+          <div class="field"><label>选择课程</label><div class="chip-row">${courseChips}</div></div>
+          <div class="field"><label>难度</label><div class="chip-row">${diffChips}</div></div>
+          <div class="field"><label>知识点</label><div class="chip-row">${pointChips}</div></div>
+          <div class="field"><label>题目数量（1–10）</label>
+            <input class="input" type="number" id="practice-count" min="1" max="10" value="${ui.practiceCount || 5}" style="max-width:120px">
+          </div>
+          <div class="divider"></div>
+          <div class="q-actions" style="flex-wrap:wrap">
+            <button class="btn btn-primary" data-act="practice-build-exam">🎯 从真题库抽题组卷</button>
+            <button class="btn btn-ai" data-act="practice-build-ai" ${ready && !ui.practiceGenLoading ? '' : 'disabled'}>✨ 让 AI 现场出题${ui.practiceGenLoading ? '（生成中…）' : ''}</button>
+          </div>
+          ${!ready ? '<div class="form-hint" style="margin-top:10px">AI 出题需先在右上角「模型」配置可用的大模型；未配置时可先用真题库练习。</div>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card practice-side">
+      <div class="card-head"><h2>📚 练习历史</h2><span class="badge">${records.length}</span></div>
+      <div class="card-body">${historyHtml}</div>
+    </div>
+  </div>`;
+}
+
+function practicePlayView() {
+  const paper = ui.practice;
+  if (!paper || !paper.questions) {
+    return `<div class="empty">没有进行中的练习<div class="q-actions" style="justify-content:center;margin-top:12px"><a class="btn btn-sm" href="#/student/practice-self">去组卷</a></div></div>`;
+  }
+  const courseName = (db.courses[paper.courseId] && db.courses[paper.courseId].course.name) || paper.courseId;
+  const sources = [...new Set(paper.questions.map(q => q.source || '真题'))];
+  const sourceLabel = sources.length > 1 ? '混合' : (sources[0] || '真题');
+  const isHistory = !!paper.historyId;
+  const qs = paper.questions;
+  const totalMax = qs.reduce((s, q) => s + q.score, 0);
+
+  const head = `
+    <div class="page-head">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <button class="btn btn-sm btn-ghost" data-act="exit-practice">← 返回</button>
+          <span class="badge brand">自主练习</span>
+          <span class="badge">${sourceLabel}</span>
+        </div>
+        <h1>${esc(courseName)} · ${isHistory ? '练习回顾' : '练习作答'}</h1>
+        <p>${qs.length} 题 · 满分 ${totalMax} 分${isHistory ? ` · 完成于 ${esc(paper.at || '')}` : ''}</p>
+      </div>
+      ${paper.result ? `<span class="badge ${paper.result.total >= paper.result.max * 0.6 ? 'success' : 'warning'}">得分 ${paper.result.total} / ${paper.result.max}</span>` : ''}
+    </div>`;
+
+  if (paper.result) {
+    const list = qs.map((q, index) => {
+      const item = (paper.result.items || []).find(it => it.qid === q.id) || { score: 0, max: q.score };
+      const value = paper.answers[q.id];
+      const correct = item.score === q.score;
+      const point = P(q.knowledgeId);
+      let body;
+      if (q.type === 'single') {
+        const opts = (q.options || []).map((opt, i) => {
+          let cls = '';
+          if (i === q.answer) cls = 'correct';
+          else if (i === pickedIndex(value)) cls = 'wrong';
+          return `<div class="option ${cls}"><span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(opt)}</span></div>`;
+        }).join('');
+        body = `${opts}
+          <div class="review-card" style="background:var(--surface-2)">
+            <div class="review-head"><b>我的答案</b></div>
+            <div class="review-text">${singleAnswerLineHtml(value, q.answer)}</div>
+          </div>`;
+      } else {
+        const review = item.review;
+        body = `
+          <div class="review-card" style="background:var(--surface-2)">
+            <div class="review-head"><b>我的答案</b></div>
+            <div class="review-text">${answerDisplayHtml(value)}</div>
+          </div>
+          <div class="review-card">
+            <div class="review-head"><b>✅ 标准答案</b>${point ? `<span class="badge outline">课件第 ${point.page} 页</span>` : ''}</div>
+            <div class="review-text">${esc(q.reference || '').replace(/\n/g, '<br>')}</div>
+          </div>
+          ${review ? `
+          <div class="review-card ai">
+            <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
+            <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
+            ${point ? `<button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${point.page} 页原文</button>` : ''}
+          </div>` : ''}`;
+      }
+      return `
+      <div class="q-card">
+        <div class="q-head">
+          <div>
+            <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
+            <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>得分 ${item.score} / ${q.score}</span>${q.source ? `<span>·</span><span>${esc(q.source)}</span>` : ''}</div>
+          </div>
+          <span class="badge ${correct ? 'success' : item.score > 0 ? 'warning' : 'danger'}">${correct ? '正确' : item.score > 0 ? '部分得分' : '需订正'}</span>
+        </div>
+        ${body}
+      </div>`;
+    }).join('');
+    return head + `<div class="practice-layout"><div>${list}</div>
+      <div class="card practice-side">
+        <div class="card-head"><h2>本次成绩</h2><span class="badge">${paper.result.total} / ${paper.result.max}</span></div>
+        <div class="card-body">
+          <div class="privacy-note"><span>📊</span><div>正确率 ${Math.round(paper.result.total / paper.result.max * 100)}%。${isHistory ? '这是历史练习回顾。' : '可在「练习历史」中随时回看本次解析。'}</div></div>
+          <a class="btn btn-primary btn-block" style="margin-top:14px" href="#/student/practice-self">再来一组</a>
+        </div>
+      </div></div>`;
+  }
+
+  /* 作答中 */
+  const questionsHtml = qs.map((q, index) => {
+    const value = paper.answers[q.id];
+    return `
+    <div class="q-card" id="q-${q.id}">
+      <div class="q-head">
+        <div>
+          <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
+          <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>${q.score} 分</span>${q.source ? `<span>·</span><span>${esc(q.source)}</span>` : ''}<span>·</span><span>${esc(P(q.knowledgeId)?.title || '')}</span></div>
+        </div>
+      </div>
+      ${q.type === 'single'
+        ? `${(q.options || []).map((opt, i) => `
+          <div class="option ${pickedIndex(value) === i ? 'selected' : ''}" data-act="practice-option" data-id="${q.id}" data-index="${i}">
+            <span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(opt)}</span>
+          </div>`).join('')}`
+        : `<textarea class="textarea" data-act="practice-short" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(answerText(value) || '')}</textarea>
+          ${answerImageBarHtml('practice', q.id, value)}`}
+    </div>`;
+  }).join('');
+
+  const answeredCount = qs.filter(q => answerHasContent(paper.answers[q.id])).length;
+
+  return head + `
+  <div class="practice-layout">
+    <div>${questionsHtml}</div>
+    <div class="card practice-side">
+      <div class="card-head"><h2>答题卡</h2><span class="badge">${answeredCount} / ${qs.length}</span></div>
+      <div class="card-body">
+        <div class="answer-card">${qs.map((q, i) => `<div class="ans-dot ${answerHasContent(paper.answers[q.id]) ? 'done' : ''}" data-act="jump" data-id="${q.id}">${i + 1}</div>`).join('')}</div>
+        <div class="divider"></div>
+        <div class="privacy-note"><span>🤖</span><div>提交后立即判分：客观题自动判定，简答题由 AI 按评分要点给出建议分数。</div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-practice">提交并判分</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:8px" data-act="exit-practice">放弃本次练习</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function practiceView() {
   /* 学生端只保留「课堂问答」和「课后作业」，课后习题并入课后作业 */
   const mode = ui.practiceTab === 'quiz' ? 'quiz' : 'homework';
@@ -9308,7 +9857,7 @@ function render() {
     return;
   }
 
-  if (role === 'student' && !studentClassIds().length && page !== 'join') {
+  if (role === 'student' && !studentClassIds().length && page !== 'join' && page !== 'practice-self' && page !== 'practice-play') {
     location.hash = '#/student/join';
     return;
   }
@@ -9329,6 +9878,8 @@ function render() {
   } else {
     if (page === 'learn') content = learnView();
     else if (page === 'practice') content = param ? playerView(param) : practiceView();
+    else if (page === 'practice-self') content = practiceSelfView();
+    else if (page === 'practice-play') content = practicePlayView();
     else if (page === 'exercise') content = param ? exercisePlayerView(param) : practiceView();
     else if (page === 'messages') content = messagesView();
     else if (page === 'ai') content = aiChatView();
@@ -9346,6 +9897,9 @@ function render() {
   }
   if (page === 'redo') {
     pageKey = 'student/wrong';
+  }
+  if (page === 'practice-self' || page === 'practice-play') {
+    pageKey = 'student/practice-self';
   }
 
   root.innerHTML = shellView(pageKey, content);
@@ -9805,6 +10359,9 @@ document.addEventListener('click', event => {
     case 'llm-test':
       testLlmConnection();
       break;
+    case 'llm-vision-test':
+      testLlmVisionConnection();
+      break;
 
     case 'start-assignment':
       startAssignment(id);
@@ -9841,6 +10398,26 @@ document.addEventListener('click', event => {
     case 'submit-assignment':
       submitAssignment(id);
       break;
+
+    /* 自主练习 */
+    case 'practice-course':
+      ui.practiceCourse = id; ui.practicePoint = ''; render(); break;
+    case 'practice-point':
+      ui.practicePoint = id; render(); break;
+    case 'practice-difficulty':
+      ui.practiceDifficulty = target.dataset.level || ''; render(); break;
+    case 'practice-build-exam':
+      buildPracticeExam(); break;
+    case 'practice-build-ai':
+      buildPracticeAi(); break;
+    case 'practice-option':
+      setPracticeOption(id, Number(target.dataset.index)); break;
+    case 'submit-practice':
+      submitPractice(); break;
+    case 'open-practice-record':
+      openPracticeRecord(id); break;
+    case 'exit-practice':
+      exitPractice(); break;
 
     case 'open-tutor':
       openTutor(id);
@@ -9958,11 +10535,20 @@ document.addEventListener('input', event => {
       ? { text: el.value, images: cur.images || [] }
       : { text: el.value, images: [] };
   }
+  if (el.dataset && el.dataset.act === 'practice-short' && el.dataset.id) {
+    setPracticeShort(el.dataset.id, el.value);
+  }
 });
 
 /* 照片作答：文件选择后压缩入库，不重绘以保留输入焦点 */
 document.addEventListener('change', event => {
   const el = event.target;
+  if (el.id === 'practice-count') {
+    const v = Math.max(1, Math.min(10, Number(el.value) || 5));
+    ui.practiceCount = v;
+    el.value = v;
+    return;
+  }
   if (el.dataset && el.dataset.act === 'answer-file' && el.files && el.files.length) {
     handleAnswerFiles(el.files, el.dataset.kind, el.dataset.id);
     el.value = '';

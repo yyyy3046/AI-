@@ -500,6 +500,195 @@ function renderAiHomeQuestion(tabs) {
   `;
 }
 
+/* 某门课真题库覆盖的知识点（用于自主练习筛选） */
+function practiceCoursePoints(courseId) {
+  const eq = (db.courses[courseId] && db.courses[courseId].examQuestions) || [];
+  const ids = [];
+  eq.forEach(q => { if (q.knowledgeId && !ids.includes(q.knowledgeId)) ids.push(q.knowledgeId); });
+  return ids.map(id => P(id)).filter(Boolean);
+}
+
+function practiceSelfView() {
+  const courseId = ui.practiceCourse || 'math';
+  const points = practiceCoursePoints(courseId);
+  const ready = llmReady();
+  const records = (db.practiceRecords || []).filter(r => r.studentId === (db.session.userId || 's1'));
+
+  const courseChips = Object.keys(db.courses).map(id => `
+    <button class="chip-btn ${courseId === id ? 'active' : ''}" data-act="practice-course" data-id="${id}">${esc(db.courses[id].course.name)}</button>
+  `).join('');
+
+  const diffChips = [['', '全部'], ['基础', '基础'], ['提高', '提高']].map(([v, l]) => `
+    <button class="chip-btn ${(ui.practiceDifficulty || '') === v ? 'active' : ''}" data-act="practice-difficulty" data-level="${v}">${l}</button>
+  `).join('');
+
+  const pointChips = `
+    <button class="chip-btn ${!ui.practicePoint ? 'active' : ''}" data-act="practice-point" data-id="">全部知识点</button>
+    ${points.map(p => `<button class="chip-btn ${ui.practicePoint === p.id ? 'active' : ''}" data-act="practice-point" data-id="${p.id}">${esc(p.title)}</button>`).join('')}
+  `;
+
+  const historyHtml = records.length ? records.map(r => {
+    const cname = (db.courses[r.courseId] && db.courses[r.courseId].course.name) || r.courseId;
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">
+      <div><b>${esc(cname)}</b><div class="sub">${esc(r.at)}</div></div>
+      <span class="badge ${r.total >= r.max * 0.6 ? 'success' : 'warning'}">${r.total} / ${r.max}</span>
+      <button class="btn btn-sm btn-ghost" data-act="open-practice-record" data-id="${r.id}">查看</button>
+    </div>`;
+  }).join('') : '<div class="empty">还没有练习记录，组卷后开始第一次练习吧</div>';
+
+  return `
+  <div class="practice-layout">
+    <div>
+      <div class="card">
+        <div class="card-head"><h2>🎯 组卷设置</h2></div>
+        <div class="card-body">
+          <div class="field"><label>选择课程</label><div class="chip-row">${courseChips}</div></div>
+          <div class="field"><label>难度</label><div class="chip-row">${diffChips}</div></div>
+          <div class="field"><label>知识点</label><div class="chip-row">${pointChips}</div></div>
+          <div class="field"><label>题目数量（1–10）</label>
+            <input class="input" type="number" id="practice-count" min="1" max="10" value="${ui.practiceCount || 5}" style="max-width:120px">
+          </div>
+          <div class="divider"></div>
+          <div class="q-actions" style="flex-wrap:wrap">
+            <button class="btn btn-primary" data-act="practice-build-exam">🎯 从真题库抽题组卷</button>
+            <button class="btn btn-ai" data-act="practice-build-ai" ${ready && !ui.practiceGenLoading ? '' : 'disabled'}>✨ 让 AI 现场出题${ui.practiceGenLoading ? '（生成中…）' : ''}</button>
+          </div>
+          ${!ready ? '<div class="form-hint" style="margin-top:10px">AI 出题需先在右上角「模型」配置可用的大模型；未配置时可先用真题库练习。</div>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card practice-side">
+      <div class="card-head"><h2>📚 练习历史</h2><span class="badge">${records.length}</span></div>
+      <div class="card-body">${historyHtml}</div>
+    </div>
+  </div>`;
+}
+
+function practicePlayView() {
+  const paper = ui.practice;
+  if (!paper || !paper.questions) {
+    return `<div class="empty">没有进行中的练习<div class="q-actions" style="justify-content:center;margin-top:12px"><a class="btn btn-sm" href="#/student/practice-self">去组卷</a></div></div>`;
+  }
+  const courseName = (db.courses[paper.courseId] && db.courses[paper.courseId].course.name) || paper.courseId;
+  const sources = [...new Set(paper.questions.map(q => q.source || '真题'))];
+  const sourceLabel = sources.length > 1 ? '混合' : (sources[0] || '真题');
+  const isHistory = !!paper.historyId;
+  const qs = paper.questions;
+  const totalMax = qs.reduce((s, q) => s + q.score, 0);
+
+  const head = `
+    <div class="page-head">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <button class="btn btn-sm btn-ghost" data-act="exit-practice">← 返回</button>
+          <span class="badge brand">自主练习</span>
+          <span class="badge">${sourceLabel}</span>
+        </div>
+        <h1>${esc(courseName)} · ${isHistory ? '练习回顾' : '练习作答'}</h1>
+        <p>${qs.length} 题 · 满分 ${totalMax} 分${isHistory ? ` · 完成于 ${esc(paper.at || '')}` : ''}</p>
+      </div>
+      ${paper.result ? `<span class="badge ${paper.result.total >= paper.result.max * 0.6 ? 'success' : 'warning'}">得分 ${paper.result.total} / ${paper.result.max}</span>` : ''}
+    </div>`;
+
+  if (paper.result) {
+    const list = qs.map((q, index) => {
+      const item = (paper.result.items || []).find(it => it.qid === q.id) || { score: 0, max: q.score };
+      const value = paper.answers[q.id];
+      const correct = item.score === q.score;
+      const point = P(q.knowledgeId);
+      let body;
+      if (q.type === 'single') {
+        const opts = (q.options || []).map((opt, i) => {
+          let cls = '';
+          if (i === q.answer) cls = 'correct';
+          else if (i === pickedIndex(value)) cls = 'wrong';
+          return `<div class="option ${cls}"><span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(opt)}</span></div>`;
+        }).join('');
+        body = `${opts}
+          <div class="review-card" style="background:var(--surface-2)">
+            <div class="review-head"><b>我的答案</b></div>
+            <div class="review-text">${singleAnswerLineHtml(value, q.answer)}</div>
+          </div>`;
+      } else {
+        const review = item.review;
+        body = `
+          <div class="review-card" style="background:var(--surface-2)">
+            <div class="review-head"><b>我的答案</b></div>
+            <div class="review-text">${answerDisplayHtml(value)}</div>
+          </div>
+          <div class="review-card">
+            <div class="review-head"><b>✅ 标准答案</b>${point ? `<span class="badge outline">课件第 ${point.page} 页</span>` : ''}</div>
+            <div class="review-text">${esc(q.reference || '').replace(/\n/g, '<br>')}</div>
+          </div>
+          ${review ? `
+          <div class="review-card ai">
+            <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
+            <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
+            ${point ? `<button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${point.page} 页原文</button>` : ''}
+          </div>` : ''}`;
+      }
+      return `
+      <div class="q-card">
+        <div class="q-head">
+          <div>
+            <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
+            <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>得分 ${item.score} / ${q.score}</span>${q.source ? `<span>·</span><span>${esc(q.source)}</span>` : ''}</div>
+          </div>
+          <span class="badge ${correct ? 'success' : item.score > 0 ? 'warning' : 'danger'}">${correct ? '正确' : item.score > 0 ? '部分得分' : '需订正'}</span>
+        </div>
+        ${body}
+      </div>`;
+    }).join('');
+    return head + `<div class="practice-layout"><div>${list}</div>
+      <div class="card practice-side">
+        <div class="card-head"><h2>本次成绩</h2><span class="badge">${paper.result.total} / ${paper.result.max}</span></div>
+        <div class="card-body">
+          <div class="privacy-note"><span>📊</span><div>正确率 ${Math.round(paper.result.total / paper.result.max * 100)}%。${isHistory ? '这是历史练习回顾。' : '可在「练习历史」中随时回看本次解析。'}</div></div>
+          <a class="btn btn-primary btn-block" style="margin-top:14px" href="#/student/practice-self">再来一组</a>
+        </div>
+      </div></div>`;
+  }
+
+  /* 作答中 */
+  const questionsHtml = qs.map((q, index) => {
+    const value = paper.answers[q.id];
+    return `
+    <div class="q-card" id="q-${q.id}">
+      <div class="q-head">
+        <div>
+          <div class="q-stem"><span class="q-no">Q${index + 1}</span> ${esc(q.stem)}</div>
+          <div class="q-meta"><span>${q.type === 'single' ? '单选题' : '简答题'}</span><span>·</span><span>${q.score} 分</span>${q.source ? `<span>·</span><span>${esc(q.source)}</span>` : ''}<span>·</span><span>${esc(P(q.knowledgeId)?.title || '')}</span></div>
+        </div>
+      </div>
+      ${q.type === 'single'
+        ? `${(q.options || []).map((opt, i) => `
+          <div class="option ${pickedIndex(value) === i ? 'selected' : ''}" data-act="practice-option" data-id="${q.id}" data-index="${i}">
+            <span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(opt)}</span>
+          </div>`).join('')}`
+        : `<textarea class="textarea" data-act="practice-short" data-id="${q.id}" placeholder="写下你的理解和计算步骤…">${esc(answerText(value) || '')}</textarea>
+          ${answerImageBarHtml('practice', q.id, value)}`}
+    </div>`;
+  }).join('');
+
+  const answeredCount = qs.filter(q => answerHasContent(paper.answers[q.id])).length;
+
+  return head + `
+  <div class="practice-layout">
+    <div>${questionsHtml}</div>
+    <div class="card practice-side">
+      <div class="card-head"><h2>答题卡</h2><span class="badge">${answeredCount} / ${qs.length}</span></div>
+      <div class="card-body">
+        <div class="answer-card">${qs.map((q, i) => `<div class="ans-dot ${answerHasContent(paper.answers[q.id]) ? 'done' : ''}" data-act="jump" data-id="${q.id}">${i + 1}</div>`).join('')}</div>
+        <div class="divider"></div>
+        <div class="privacy-note"><span>🤖</span><div>提交后立即判分：客观题自动判定，简答题由 AI 按评分要点给出建议分数。</div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-practice">提交并判分</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:8px" data-act="exit-practice">放弃本次练习</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function practiceView() {
   /* 学生端只保留「课堂问答」和「课后作业」，课后习题并入课后作业 */
   const mode = ui.practiceTab === 'quiz' ? 'quiz' : 'homework';

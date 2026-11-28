@@ -33,7 +33,7 @@ function render() {
     return;
   }
 
-  if (role === 'student' && !studentClassIds().length && page !== 'join') {
+  if (role === 'student' && !studentClassIds().length && page !== 'join' && page !== 'practice-self' && page !== 'practice-play') {
     location.hash = '#/student/join';
     return;
   }
@@ -54,6 +54,8 @@ function render() {
   } else {
     if (page === 'learn') content = learnView();
     else if (page === 'practice') content = param ? playerView(param) : practiceView();
+    else if (page === 'practice-self') content = practiceSelfView();
+    else if (page === 'practice-play') content = practicePlayView();
     else if (page === 'exercise') content = param ? exercisePlayerView(param) : practiceView();
     else if (page === 'messages') content = messagesView();
     else if (page === 'ai') content = aiChatView();
@@ -71,6 +73,9 @@ function render() {
   }
   if (page === 'redo') {
     pageKey = 'student/wrong';
+  }
+  if (page === 'practice-self' || page === 'practice-play') {
+    pageKey = 'student/practice-self';
   }
 
   root.innerHTML = shellView(pageKey, content);
@@ -530,6 +535,9 @@ document.addEventListener('click', event => {
     case 'llm-test':
       testLlmConnection();
       break;
+    case 'llm-vision-test':
+      testLlmVisionConnection();
+      break;
 
     case 'start-assignment':
       startAssignment(id);
@@ -566,6 +574,26 @@ document.addEventListener('click', event => {
     case 'submit-assignment':
       submitAssignment(id);
       break;
+
+    /* 自主练习 */
+    case 'practice-course':
+      ui.practiceCourse = id; ui.practicePoint = ''; render(); break;
+    case 'practice-point':
+      ui.practicePoint = id; render(); break;
+    case 'practice-difficulty':
+      ui.practiceDifficulty = target.dataset.level || ''; render(); break;
+    case 'practice-build-exam':
+      buildPracticeExam(); break;
+    case 'practice-build-ai':
+      buildPracticeAi(); break;
+    case 'practice-option':
+      setPracticeOption(id, Number(target.dataset.index)); break;
+    case 'submit-practice':
+      submitPractice(); break;
+    case 'open-practice-record':
+      openPracticeRecord(id); break;
+    case 'exit-practice':
+      exitPractice(); break;
 
     case 'open-tutor':
       openTutor(id);
@@ -683,11 +711,20 @@ document.addEventListener('input', event => {
       ? { text: el.value, images: cur.images || [] }
       : { text: el.value, images: [] };
   }
+  if (el.dataset && el.dataset.act === 'practice-short' && el.dataset.id) {
+    setPracticeShort(el.dataset.id, el.value);
+  }
 });
 
 /* 照片作答：文件选择后压缩入库，不重绘以保留输入焦点 */
 document.addEventListener('change', event => {
   const el = event.target;
+  if (el.id === 'practice-count') {
+    const v = Math.max(1, Math.min(10, Number(el.value) || 5));
+    ui.practiceCount = v;
+    el.value = v;
+    return;
+  }
   if (el.dataset && el.dataset.act === 'answer-file' && el.files && el.files.length) {
     handleAnswerFiles(el.files, el.dataset.kind, el.dataset.id);
     el.value = '';

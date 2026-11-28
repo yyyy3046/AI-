@@ -39,6 +39,7 @@ const ui = {
   pptPage: null,
   aiPage: null,
   aiSection: null,
+  aiPagePicked: false, // 用户是否主动选过页/小节（默认页不算）
   pptPreviewPage: null,
   aiHomeChat: [],
   aiHomeMode: 'textbook',
@@ -157,7 +158,21 @@ function resetDb() {
 /* ---------------- 查询辅助 ---------------- */
 
 const Q = id => db.questions.find(q => q.id === id);
-const P = id => db.points.find(p => p.id === id);
+/* 先查当前激活课程的知识点；未命中则回退到全部课程（支撑跨课程自主练习） */
+function P(id) {
+  if (!id) return null;
+  const direct = db.points.find(p => p.id === id);
+  if (direct) return direct;
+  const courses = db.courses || {};
+  for (const cid of Object.keys(courses)) {
+    const pts = courses[cid] && courses[cid].points;
+    if (Array.isArray(pts)) {
+      const f = pts.find(p => p.id === id);
+      if (f) return f;
+    }
+  }
+  return null;
+}
 const A = id => db.assignments.find(a => a.id === id);
 
 function chapterOf(chapterId) {

@@ -145,6 +145,7 @@ const NAV_TEACHER = [
 
 const NAV_STUDENT = [
   { key: 'practice', icon: '✍️', label: '课堂与作业' },
+  { key: 'practice-self', icon: '🎯', label: '自主练习' },
   { key: 'learn', icon: '🧭', label: '知识导图' },
   { key: 'wrong', icon: '🧾', label: '错题本' },
   { key: 'ai', icon: '🤖', label: 'AI 问答' },
@@ -164,6 +165,7 @@ const TITLES = {
   'teacher/analytics': ['学情看板', '班级提交、正确率与知识点掌握情况'],
   'student/learn': ['知识导图', '点击章节与知识点，查看公式与课件来源'],
   'student/practice': ['课堂与作业', '完成课堂问答与课后作业'],
+  'student/practice-self': ['自主练习', '从真题库抽题或让 AI 现场出题，即时判分并记录练习历史'],
   'student/wrong': ['错题本', '按科目汇总错题，勾选后可重新做一遍'],
   'student/ai': ['AI 问答', '基于课件的 AI 答疑，提问会汇总给老师讲评'],
   'student/messages': ['私信与问答', '向老师提问，或匿名分享给全班']
@@ -773,6 +775,19 @@ function llmSettingsModal() {
             <input class="input" type="password" name="apiKey" id="llm-key-input" value="${esc(cfg.apiKey)}" placeholder="粘贴 Key；Agnes 请到 platform.agnes-ai.cn 生成">
             <button type="button" class="btn btn-ghost" data-act="llm-toggle-key" id="llm-key-toggle">显示</button>
           </div>
+        </div>
+        <div class="divider"></div>
+        <div class="field">
+          <label>视觉模型（选填 · 用于识别手写照片）</label>
+          <div class="llm-row" style="margin-bottom:8px">
+            <span>手写照片识别状态</span>
+            <span class="badge ${llmVisionReady() ? 'success' : 'warning'}" style="margin-left:auto">${llmVisionReady() ? '视觉可用 · 将识别手写照片' : '未单独配置 · 与文本模型共用'}</span>
+          </div>
+          <input class="input" name="visionBaseUrl" value="${esc(cfg.visionBaseUrl || '')}" placeholder="视觉 API Base URL，留空则使用上方地址">
+          <div style="height:8px"></div>
+          <input class="input" name="visionModel" value="${esc(cfg.visionModel || '')}" placeholder="视觉模型名，如 qwen-vl-plus、openai/gpt-4o-mini；留空则使用上方模型">
+          <div class="form-hint" style="margin-top:6px">配置后，学生上传手写解题照片时，视觉模型会识别照片内容并参与主观题判分；未配置时只评阅文本框内容（照片仍保存供教师查阅）。API Key 默认与上方共用。</div>
+          <div style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="llm-vision-test">测试视觉连接</button></div>
         </div>
       </form>
     </div>
