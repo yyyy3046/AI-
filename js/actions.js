@@ -1674,6 +1674,8 @@ function sendMessage(form) {
     toast('请输入问题内容');
     return;
   }
+  /* 学生手动选择请教哪位老师；未选时默认该课程主讲老师 */
+  const teacher = TEACHERS.find(t => t.id === form.addressedTo) || teachersOfCourse(db.courseId)[0] || null;
   db.messages.unshift({
     id: 'm' + Date.now(),
     courseId: db.courseId,
@@ -1684,15 +1686,18 @@ function sendMessage(form) {
     visibility: form.anonymous ? 'public' : 'private',
     body,
     questionId: form.questionId || null,
+    addressedTo: teacher ? teacher.id : null,
+    addressedToName: teacher ? teacher.name : db.course.teacher,
     answer: null,
     answeredBy: null,
+    answeredById: null,
     createdAt: '11-29 09:52',
     answeredAt: null
   });
   ui.prefillMessage = '';
   saveDb();
   render();
-  toast(form.anonymous ? '已匿名公开到课程问答广场' : `已发送给${db.course.teacher}`);
+  toast(form.anonymous ? '已匿名公开到课程问答广场' : `已发送给${teacher ? teacher.name : db.course.teacher}`);
 }
 
 function openMessage(id) {
@@ -1709,7 +1714,8 @@ function sendReply(id, text) {
     return;
   }
   message.answer = body;
-  message.answeredBy = db.course.teacher;
+  message.answeredBy = currentTeacher().name;
+  message.answeredById = currentTeacher().id;
   message.answeredAt = '11-29 10:05';
   saveDb();
   render();

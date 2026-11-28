@@ -2493,11 +2493,14 @@ const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
-/* 三位教师，各自只负责一门课程；账号密码仅用于演示 */
+/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑；账号密码仅用于演示 */
 const TEACHERS = [
   { id: 't-math', name: '张老师', username: 'gaoshu', password: '123456', courseId: 'math', courseName: '高等数学' },
+  { id: 't-math2', name: '陈老师', username: 'gaoshu2', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-physics', name: '刘老师', username: 'wuli', password: '123456', courseId: 'physics', courseName: '大学物理' },
-  { id: 't-em', name: '王老师', username: 'dianci', password: '123456', courseId: 'em', courseName: '电磁场' }
+  { id: 't-physics2', name: '赵老师', username: 'wuli2', password: '123456', courseId: 'physics', courseName: '大学物理' },
+  { id: 't-em', name: '王老师', username: 'dianci', password: '123456', courseId: 'em', courseName: '电磁场' },
+  { id: 't-em2', name: '孙老师', username: 'dianci2', password: '123456', courseId: 'em', courseName: '电磁场' }
 ];
 
 const STUDENT_ACCOUNT = { id: 's1', name: '李同学', username: 'student', password: '123456' };
@@ -2721,7 +2724,7 @@ function buildSeed() {  const seed = {
     const subject = SUBJECTS[id];
     const textbook = buildTextbook(subject);
     seed.courses[id] = {
-      course: { ...clone(subject.course), teacherId: (TEACHERS.find(t => t.courseId === id) || {}).id },
+      course: { ...clone(subject.course), teacherId: (TEACHERS.find(t => t.courseId === id) || {}).id, teacherIds: TEACHERS.filter(t => t.courseId === id).map(t => t.id) },
       classIds: COURSE_CLASSES[id].slice(),
       courseware: clone(subject.courseware),
       mindMap: clone(subject.mindMap),
@@ -3060,19 +3063,28 @@ function classesOfCourse(courseId) {
     .filter(Boolean);
 }
 
-/** 课程归属的教师：优先取课程数据里的 teacherId，兼容旧数据 */
-function teacherIdOfCourse(courseId) {
+/** 课程的全部任课老师（含共同答疑的多位老师），兼容旧数据 */
+function teachersOfCourse(courseId) {
   const data = db.courses && db.courses[courseId];
-  if (data && data.course && data.course.teacherId) return data.course.teacherId;
-  const builtin = TEACHERS.find(t => t.courseId === courseId);
-  return builtin ? builtin.id : null;
+  let ids = (data && data.course && data.course.teacherIds) || null;
+  if (!ids || !ids.length) {
+    ids = TEACHERS.filter(t => t.courseId === courseId).map(t => t.id);
+  }
+  return ids
+    .map(id => TEACHERS.find(t => t.id === id))
+    .filter(Boolean);
 }
 
-/** 某位教师名下的全部课程（含自建课程） */
+/** 课程归属的主讲教师：取任课老师列表第一位，兼容旧数据 */
+function teacherIdOfCourse(courseId) {
+  return teachersOfCourse(courseId)[0]?.id || null;
+}
+
+/** 某位教师名下的全部课程（含自建课程）；共同答疑的老师都能看到同一门课 */
 function coursesOfTeacher(teacherId) {
   const tid = teacherId || db.session.teacherId;
   return Object.keys(db.courses || {})
-    .filter(id => teacherIdOfCourse(id) === tid)
+    .filter(id => teachersOfCourse(id).some(t => t.id === tid))
     .map(id => ({ id, name: db.courses[id].course.name, code: db.courses[id].course.code }));
 }
 
@@ -4983,6 +4995,8 @@ function sendMessage(form) {
     toast('请输入问题内容');
     return;
   }
+  /* 学生手动选择请教哪位老师；未选时默认该课程主讲老师 */
+  const teacher = TEACHERS.find(t => t.id === form.addressedTo) || teachersOfCourse(db.courseId)[0] || null;
   db.messages.unshift({
     id: 'm' + Date.now(),
     courseId: db.courseId,
@@ -4993,15 +5007,18 @@ function sendMessage(form) {
     visibility: form.anonymous ? 'public' : 'private',
     body,
     questionId: form.questionId || null,
+    addressedTo: teacher ? teacher.id : null,
+    addressedToName: teacher ? teacher.name : db.course.teacher,
     answer: null,
     answeredBy: null,
+    answeredById: null,
     createdAt: '11-29 09:52',
     answeredAt: null
   });
   ui.prefillMessage = '';
   saveDb();
   render();
-  toast(form.anonymous ? '已匿名公开到课程问答广场' : `已发送给${db.course.teacher}`);
+  toast(form.anonymous ? '已匿名公开到课程问答广场' : `已发送给${teacher ? teacher.name : db.course.teacher}`);
 }
 
 function openMessage(id) {
@@ -5018,7 +5035,8 @@ function sendReply(id, text) {
     return;
   }
   message.answer = body;
-  message.answeredBy = db.course.teacher;
+  message.answeredBy = currentTeacher().name;
+  message.answeredById = currentTeacher().id;
   message.answeredAt = '11-29 10:05';
   saveDb();
   render();
@@ -6285,6 +6303,7 @@ function qaView() {
     <div class="msg clickable ${active && active.id === m.id ? 'active' : ''}" data-act="open-message" data-id="${m.id}">      <div class="msg-head">
         <span class="avatar ${m.visibility === 'public' ? 'anon' : ''}">${m.visibility === 'public' ? '匿' : esc(m.authorName.slice(0, 1))}</span>
         <span class="msg-author">${m.visibility === 'public' ? '匿名同学' : esc(m.authorName)}</span>
+        ${m.addressedToName ? `<span class="badge">请教 ${esc(m.addressedToName)}</span>` : ''}
         <span class="badge ${pending ? 'warning' : 'success'}">${pending ? '待回答' : '已回答'}</span>
         <span class="msg-time">${esc(m.createdAt)}</span>
       </div>
@@ -6301,7 +6320,7 @@ function qaView() {
       <div class="card-head">
         <div>
           <h2>${active.visibility === 'public' ? '匿名公开提问' : '学生私信'}</h2>
-          <div class="sub">${esc(active.createdAt)}${active.anonymous ? ' · 已获学生授权公开' : ' · 仅双方可见'}</div>
+          <div class="sub">${esc(active.createdAt)}${active.anonymous ? ' · 已获学生授权公开' : ' · 仅双方可见'}${active.addressedToName ? ` · 请教 ${esc(active.addressedToName)}` : ''}</div>
         </div>
         <span class="badge ${active.visibility === 'public' ? 'ai' : 'brand'}">${active.visibility === 'public' ? '问答广场' : '私信'}</span>
       </div>
@@ -6314,7 +6333,7 @@ function qaView() {
 
         ${active.answer ? `
           <div class="answer" style="margin-top:14px">
-            <b>我的回答 · ${esc(active.answeredAt || '')}</b>
+            <b>${esc(active.answeredBy || currentTeacher().name)}的回答 · ${esc(active.answeredAt || '')}</b>
             ${esc(active.answer)}
           </div>` : `
           <div class="field" style="margin-top:16px">
@@ -8256,6 +8275,9 @@ function messagesView() {
   const publicMessages = courseMessages.filter(m => m.visibility === 'public');
   const questionOptions = db.questions.map((q, i) =>
     `<option value="${q.id}">Q${i + 1} · ${esc(q.stem.slice(0, 22))}…</option>`).join('');
+  const courseTeachers = teachersOfCourse(db.courseId);
+  const teacherOptions = courseTeachers.map((t, i) =>
+    `<option value="${t.id}">${esc(t.name)}${i === 0 ? '（主讲）' : ''}</option>`).join('');
 
   const myHtml = myMessages.map(m => messageCard(m, false)).join('');
   const publicHtml = publicMessages.map(m => messageCard(m, true)).join('');
@@ -8263,13 +8285,19 @@ function messagesView() {
   return `
   <div class="notice">
     <span>🔒</span>
-    <div><b>匿名说明：</b>勾选「匿名公开」后，问题会出现在课程问答广场，其他同学只能看到「匿名同学」；不勾选则只有你和${esc(db.course.teacher)}可见。</div>
+    <div><b>匿名说明：</b>勾选「匿名公开」后，问题会出现在课程问答广场，其他同学只能看到「匿名同学」；不勾选则只有你和任课老师可见。可在下方选择请教哪位老师，该课程的任课老师都能看到并回答。</div>
   </div>
 
   <div class="grid-2" style="grid-template-columns:1fr 1fr;align-items:start">
     <div class="card">
-      <div class="card-head"><h2>向${esc(db.course.teacher)}提问</h2><span class="badge brand">私信</span></div>
+      <div class="card-head"><h2>向任课老师提问</h2><span class="badge brand">私信</span></div>
       <div class="card-body">
+        <div class="field">
+          <label>请教哪位老师</label>
+          <select class="select" id="msg-teacher">
+            ${teacherOptions || '<option value="">（暂无老师）</option>'}
+          </select>
+        </div>
         <div class="field">
           <label>问题内容</label>
           <textarea class="textarea" id="msg-body" placeholder="例如：老师，MSE 里为什么一定要平方，取绝对值不行吗？">${esc(ui.prefillMessage || '')}</textarea>
@@ -8311,19 +8339,21 @@ function messagesView() {
 function messageCard(m, asPublic) {
   const pending = !m.answer;
   const author = asPublic ? '匿名同学' : (m.authorName === '李同学' ? '我' : m.authorName);
+  const teacherName = m.answeredBy || m.addressedToName || db.course.teacher;
   return `
   <div class="msg">
     <div class="msg-head">
       <span class="avatar ${asPublic ? 'anon' : ''}">${asPublic ? '匿' : esc(author.slice(0, 1))}</span>
       <span class="msg-author">${esc(author)}</span>
       ${asPublic ? '<span class="badge">匿名公开</span>' : `<span class="badge ${m.anonymous ? 'ai' : 'brand'}">${m.anonymous ? '已匿名公开' : '仅双方可见'}</span>`}
+      ${m.addressedToName ? `<span class="badge">请教 ${esc(m.addressedToName)}</span>` : ''}
       <span class="badge ${pending ? 'warning' : 'success'}">${pending ? '待回答' : '老师已回答'}</span>
       <span class="msg-time">${esc(m.createdAt)}</span>
     </div>
     <div class="msg-body">${esc(m.body)}</div>
     ${m.questionId ? `<div class="msg-link">关联题目 · Q${db.questions.findIndex(q => q.id === m.questionId) + 1}</div>` : ''}
     ${m.answer
-      ? `<div class="answer"><b>${esc(db.course.teacher)}的回答</b>${esc(m.answer)}</div>`
+      ? `<div class="answer"><b>${esc(teacherName)}的回答</b>${esc(m.answer)}</div>`
       : '<div class="answer pending"><b>等待老师回答</b>老师回复后这里会同步显示</div>'}
   </div>`;
 }
@@ -8901,11 +8931,13 @@ document.addEventListener('click', event => {
       const body = document.getElementById('msg-body');
       const question = document.getElementById('msg-question');
       const anon = document.getElementById('msg-anon');
+      const teacher = document.getElementById('msg-teacher');
       if (!body) break;
       sendMessage({
         body: body.value,
         questionId: question ? question.value : '',
-        anonymous: !!(anon && anon.checked)
+        anonymous: !!(anon && anon.checked),
+        addressedTo: teacher ? teacher.value : ''
       });
       break;
     }

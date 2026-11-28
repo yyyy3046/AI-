@@ -7,11 +7,14 @@ const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
-/* 三位教师，各自只负责一门课程；账号密码仅用于演示 */
+/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑；账号密码仅用于演示 */
 const TEACHERS = [
   { id: 't-math', name: '张老师', username: 'gaoshu', password: '123456', courseId: 'math', courseName: '高等数学' },
+  { id: 't-math2', name: '陈老师', username: 'gaoshu2', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-physics', name: '刘老师', username: 'wuli', password: '123456', courseId: 'physics', courseName: '大学物理' },
-  { id: 't-em', name: '王老师', username: 'dianci', password: '123456', courseId: 'em', courseName: '电磁场' }
+  { id: 't-physics2', name: '赵老师', username: 'wuli2', password: '123456', courseId: 'physics', courseName: '大学物理' },
+  { id: 't-em', name: '王老师', username: 'dianci', password: '123456', courseId: 'em', courseName: '电磁场' },
+  { id: 't-em2', name: '孙老师', username: 'dianci2', password: '123456', courseId: 'em', courseName: '电磁场' }
 ];
 
 const STUDENT_ACCOUNT = { id: 's1', name: '李同学', username: 'student', password: '123456' };
@@ -235,7 +238,7 @@ function buildSeed() {  const seed = {
     const subject = SUBJECTS[id];
     const textbook = buildTextbook(subject);
     seed.courses[id] = {
-      course: { ...clone(subject.course), teacherId: (TEACHERS.find(t => t.courseId === id) || {}).id },
+      course: { ...clone(subject.course), teacherId: (TEACHERS.find(t => t.courseId === id) || {}).id, teacherIds: TEACHERS.filter(t => t.courseId === id).map(t => t.id) },
       classIds: COURSE_CLASSES[id].slice(),
       courseware: clone(subject.courseware),
       mindMap: clone(subject.mindMap),

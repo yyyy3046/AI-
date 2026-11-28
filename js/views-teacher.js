@@ -452,6 +452,7 @@ function qaView() {
     <div class="msg clickable ${active && active.id === m.id ? 'active' : ''}" data-act="open-message" data-id="${m.id}">      <div class="msg-head">
         <span class="avatar ${m.visibility === 'public' ? 'anon' : ''}">${m.visibility === 'public' ? '匿' : esc(m.authorName.slice(0, 1))}</span>
         <span class="msg-author">${m.visibility === 'public' ? '匿名同学' : esc(m.authorName)}</span>
+        ${m.addressedToName ? `<span class="badge">请教 ${esc(m.addressedToName)}</span>` : ''}
         <span class="badge ${pending ? 'warning' : 'success'}">${pending ? '待回答' : '已回答'}</span>
         <span class="msg-time">${esc(m.createdAt)}</span>
       </div>
@@ -468,7 +469,7 @@ function qaView() {
       <div class="card-head">
         <div>
           <h2>${active.visibility === 'public' ? '匿名公开提问' : '学生私信'}</h2>
-          <div class="sub">${esc(active.createdAt)}${active.anonymous ? ' · 已获学生授权公开' : ' · 仅双方可见'}</div>
+          <div class="sub">${esc(active.createdAt)}${active.anonymous ? ' · 已获学生授权公开' : ' · 仅双方可见'}${active.addressedToName ? ` · 请教 ${esc(active.addressedToName)}` : ''}</div>
         </div>
         <span class="badge ${active.visibility === 'public' ? 'ai' : 'brand'}">${active.visibility === 'public' ? '问答广场' : '私信'}</span>
       </div>
@@ -481,7 +482,7 @@ function qaView() {
 
         ${active.answer ? `
           <div class="answer" style="margin-top:14px">
-            <b>我的回答 · ${esc(active.answeredAt || '')}</b>
+            <b>${esc(active.answeredBy || currentTeacher().name)}的回答 · ${esc(active.answeredAt || '')}</b>
             ${esc(active.answer)}
           </div>` : `
           <div class="field" style="margin-top:16px">

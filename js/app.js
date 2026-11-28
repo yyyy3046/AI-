@@ -569,11 +569,13 @@ document.addEventListener('click', event => {
       const body = document.getElementById('msg-body');
       const question = document.getElementById('msg-question');
       const anon = document.getElementById('msg-anon');
+      const teacher = document.getElementById('msg-teacher');
       if (!body) break;
       sendMessage({
         body: body.value,
         questionId: question ? question.value : '',
-        anonymous: !!(anon && anon.checked)
+        anonymous: !!(anon && anon.checked),
+        addressedTo: teacher ? teacher.value : ''
       });
       break;
     }

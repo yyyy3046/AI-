@@ -206,19 +206,28 @@ function classesOfCourse(courseId) {
     .filter(Boolean);
 }
 
-/** 课程归属的教师：优先取课程数据里的 teacherId，兼容旧数据 */
-function teacherIdOfCourse(courseId) {
+/** 课程的全部任课老师（含共同答疑的多位老师），兼容旧数据 */
+function teachersOfCourse(courseId) {
   const data = db.courses && db.courses[courseId];
-  if (data && data.course && data.course.teacherId) return data.course.teacherId;
-  const builtin = TEACHERS.find(t => t.courseId === courseId);
-  return builtin ? builtin.id : null;
+  let ids = (data && data.course && data.course.teacherIds) || null;
+  if (!ids || !ids.length) {
+    ids = TEACHERS.filter(t => t.courseId === courseId).map(t => t.id);
+  }
+  return ids
+    .map(id => TEACHERS.find(t => t.id === id))
+    .filter(Boolean);
 }
 
-/** 某位教师名下的全部课程（含自建课程） */
+/** 课程归属的主讲教师：取任课老师列表第一位，兼容旧数据 */
+function teacherIdOfCourse(courseId) {
+  return teachersOfCourse(courseId)[0]?.id || null;
+}
+
+/** 某位教师名下的全部课程（含自建课程）；共同答疑的老师都能看到同一门课 */
 function coursesOfTeacher(teacherId) {
   const tid = teacherId || db.session.teacherId;
   return Object.keys(db.courses || {})
-    .filter(id => teacherIdOfCourse(id) === tid)
+    .filter(id => teachersOfCourse(id).some(t => t.id === tid))
     .map(id => ({ id, name: db.courses[id].course.name, code: db.courses[id].course.code }));
 }
 

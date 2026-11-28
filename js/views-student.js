@@ -1074,6 +1074,9 @@ function messagesView() {
   const publicMessages = courseMessages.filter(m => m.visibility === 'public');
   const questionOptions = db.questions.map((q, i) =>
     `<option value="${q.id}">Q${i + 1} · ${esc(q.stem.slice(0, 22))}…</option>`).join('');
+  const courseTeachers = teachersOfCourse(db.courseId);
+  const teacherOptions = courseTeachers.map((t, i) =>
+    `<option value="${t.id}">${esc(t.name)}${i === 0 ? '（主讲）' : ''}</option>`).join('');
 
   const myHtml = myMessages.map(m => messageCard(m, false)).join('');
   const publicHtml = publicMessages.map(m => messageCard(m, true)).join('');
@@ -1081,13 +1084,19 @@ function messagesView() {
   return `
   <div class="notice">
     <span>🔒</span>
-    <div><b>匿名说明：</b>勾选「匿名公开」后，问题会出现在课程问答广场，其他同学只能看到「匿名同学」；不勾选则只有你和${esc(db.course.teacher)}可见。</div>
+    <div><b>匿名说明：</b>勾选「匿名公开」后，问题会出现在课程问答广场，其他同学只能看到「匿名同学」；不勾选则只有你和任课老师可见。可在下方选择请教哪位老师，该课程的任课老师都能看到并回答。</div>
   </div>
 
   <div class="grid-2" style="grid-template-columns:1fr 1fr;align-items:start">
     <div class="card">
-      <div class="card-head"><h2>向${esc(db.course.teacher)}提问</h2><span class="badge brand">私信</span></div>
+      <div class="card-head"><h2>向任课老师提问</h2><span class="badge brand">私信</span></div>
       <div class="card-body">
+        <div class="field">
+          <label>请教哪位老师</label>
+          <select class="select" id="msg-teacher">
+            ${teacherOptions || '<option value="">（暂无老师）</option>'}
+          </select>
+        </div>
         <div class="field">
           <label>问题内容</label>
           <textarea class="textarea" id="msg-body" placeholder="例如：老师，MSE 里为什么一定要平方，取绝对值不行吗？">${esc(ui.prefillMessage || '')}</textarea>
@@ -1129,19 +1138,21 @@ function messagesView() {
 function messageCard(m, asPublic) {
   const pending = !m.answer;
   const author = asPublic ? '匿名同学' : (m.authorName === '李同学' ? '我' : m.authorName);
+  const teacherName = m.answeredBy || m.addressedToName || db.course.teacher;
   return `
   <div class="msg">
     <div class="msg-head">
       <span class="avatar ${asPublic ? 'anon' : ''}">${asPublic ? '匿' : esc(author.slice(0, 1))}</span>
       <span class="msg-author">${esc(author)}</span>
       ${asPublic ? '<span class="badge">匿名公开</span>' : `<span class="badge ${m.anonymous ? 'ai' : 'brand'}">${m.anonymous ? '已匿名公开' : '仅双方可见'}</span>`}
+      ${m.addressedToName ? `<span class="badge">请教 ${esc(m.addressedToName)}</span>` : ''}
       <span class="badge ${pending ? 'warning' : 'success'}">${pending ? '待回答' : '老师已回答'}</span>
       <span class="msg-time">${esc(m.createdAt)}</span>
     </div>
     <div class="msg-body">${esc(m.body)}</div>
     ${m.questionId ? `<div class="msg-link">关联题目 · Q${db.questions.findIndex(q => q.id === m.questionId) + 1}</div>` : ''}
     ${m.answer
-      ? `<div class="answer"><b>${esc(db.course.teacher)}的回答</b>${esc(m.answer)}</div>`
+      ? `<div class="answer"><b>${esc(teacherName)}的回答</b>${esc(m.answer)}</div>`
       : '<div class="answer pending"><b>等待老师回答</b>老师回复后这里会同步显示</div>'}
   </div>`;
 }
