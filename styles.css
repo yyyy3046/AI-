@@ -1695,6 +1695,10 @@ button.practice-item:hover { border-color: #B9C8FF; }
 .radar-legend .lg.mid i { background: var(--warning); }
 .radar-legend .lg.strong i { background: var(--success); }
 .radar-bars-title { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 2px 0 10px; }
+.radar-label.untested { fill: var(--text-3); font-weight: 500; }
+.radar-legend .lg.untested i { background: var(--text-3); }
+.bar-row.untested > span:first-child { color: var(--text-3); }
+.bar-fill.untested { background: var(--text-3); opacity: .22; }
 
 @media (max-width: 520px) {
   .radar-chart { max-width: 100%; }

@@ -590,7 +590,16 @@ function liveView() {
 function analyticsView() {
   const data = analyticsData();
 
-  const masteryHtml = data.mastery.map(row => {
+  const radarItems = data.radarItems || [];
+  const masteryBarsHtml = radarItems.map(row => {
+    if (row.tested === false) {
+      return `
+      <div class="bar-row untested">
+        <span>${esc(row.title)}</span>
+        <span class="bar-track"><span class="bar-fill untested" style="width:0%"></span></span>
+        <span class="val">未测</span>
+      </div>`;
+    }
     const cls = row.rate < 50 ? 'verylow' : row.rate < 75 ? 'low' : '';
     return `
       <div class="bar-row">
@@ -600,25 +609,28 @@ function analyticsView() {
       </div>`;
   }).join('');
 
-  const weakCount = data.mastery.filter(r => r.rate < 50).length;
-  const midCount = data.mastery.filter(r => r.rate >= 50 && r.rate < 75).length;
-  const strongCount = data.mastery.filter(r => r.rate >= 75).length;
+  const weakCount = radarItems.filter(r => r.tested && r.rate < 50).length;
+  const midCount = radarItems.filter(r => r.tested && r.rate >= 50 && r.rate < 75).length;
+  const strongCount = radarItems.filter(r => r.tested && r.rate >= 75).length;
+  const untestedCount = radarItems.filter(r => r.tested === false).length;
+  const testedCount = radarItems.length - untestedCount;
   let masteryCardBody;
-  if (!data.mastery.length) {
-    masteryCardBody = '<div class="empty">暂无作答数据</div>';
-  } else if (data.mastery.length >= 3) {
+  if (!radarItems.length) {
+    masteryCardBody = '<div class="empty">暂无知识点数据</div>';
+  } else if (radarItems.length >= 3) {
     masteryCardBody = `
-      <div class="radar-wrap">${radarChartSvg(data.mastery)}</div>
+      <div class="radar-wrap">${radarChartSvg(radarItems)}</div>
       <div class="radar-legend">
         <span class="lg weak"><i></i>薄弱 ${weakCount}</span>
         <span class="lg mid"><i></i>待巩固 ${midCount}</span>
         <span class="lg strong"><i></i>扎实 ${strongCount}</span>
+        <span class="lg untested"><i></i>未测 ${untestedCount}</span>
       </div>
       <div class="divider"></div>
-      <div class="radar-bars-title">各知识点掌握率明细</div>
-      ${masteryHtml}`;
+      <div class="radar-bars-title">各知识点掌握率明细（共 ${radarItems.length} 个，已测 ${testedCount} 个）</div>
+      ${masteryBarsHtml}`;
   } else {
-    masteryCardBody = masteryHtml;
+    masteryCardBody = masteryBarsHtml || '<div class="empty">暂无作答数据</div>';
   }
 
   const errorHtml = data.errors.map(e => `
@@ -732,8 +744,8 @@ function analyticsView() {
   <div class="grid-2">
     <div class="card">
       <div class="card-head">
-        <div><h2>知识点掌握度</h2><div class="sub">按已作答的客观题统计</div></div>
-        <span class="badge">${data.mastery.length} 个知识点</span>
+        <div><h2>知识点掌握度</h2><div class="sub">雷达图覆盖课程全部知识点，灰色为暂无作答数据</div></div>
+        <span class="badge">${radarItems.length} 个知识点（已测 ${testedCount}）</span>
       </div>
       <div class="card-body">${masteryCardBody}</div>
     </div>

@@ -901,7 +901,7 @@ function tutorDrawer() {
 
 /**
  * 纯 SVG 雷达图：呈现各知识点掌握度强弱，一眼看出薄弱环节。
- * @param {Array<{title:string, rate:number}>} items - rate 为 0-100 的掌握率
+ * @param {Array<{title:string, rate:number, tested?:boolean}>} items - rate 为 0-100 的掌握率；tested:false 表示暂无作答（落到中心，标签显示「未测」，不臆造掌握率）
  * @param {{size?:number}} [opts]
  * @returns {string} SVG 字符串；知识点不足 3 个时返回空串（调用方自行回退到条形列表）
  */
@@ -947,6 +947,7 @@ function radarChartSvg(items, opts) {
   }).join(' ');
 
   const dots = items.map((it, i) => {
+    if (it.tested === false) return ''; // 未测点落在中心，不重复绘制顶点
     const [x, y] = pt(i, clamp(it.rate) / 100);
     const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
     return `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="3.5" class="radar-dot ${tone}" />`;
@@ -955,8 +956,10 @@ function radarChartSvg(items, opts) {
   const labels = items.map((it, i) => {
     const [x, y] = pt(i, 1.22);
     const anchor = Math.abs(x - cx) < 5 ? 'middle' : (x > cx ? 'start' : 'end');
-    const tone = it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong');
-    return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label ${tone}">${esc(it.title)} · ${clamp(it.rate)}%</text>`;
+    const untested = it.tested === false;
+    const tone = untested ? 'untested' : (it.rate < 50 ? 'weak' : (it.rate < 75 ? 'mid' : 'strong'));
+    const val = untested ? '未测' : `${clamp(it.rate)}%`;
+    return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label ${tone}">${esc(it.title)} · ${val}</text>`;
   }).join('');
 
   return `<svg class="radar-chart" viewBox="0 0 ${size} ${size}" width="100%" height="${size}" role="img" aria-label="知识点掌握度雷达图">${gridPolys}${ringLabels}${axes}<polygon points="${dataPts}" class="radar-data" />${dots}${labels}</svg>`;
