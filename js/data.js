@@ -205,7 +205,7 @@ function buildTextbook(subject) {
 }
 
 function buildSeed() {  const seed = {
-    version: 4,
+    version: 5,
   storageKey: STORAGE_KEY,
     session: { role: null, userId: null },
     courseId: 'math',
@@ -222,7 +222,9 @@ function buildSeed() {  const seed = {
     exerciseSubmissions: [],
     aiQuestions: [],
     messages: [],
-    selfCheck: {}
+    selfCheck: {},
+    practiceRecords: [],
+    quizStart: {}
   };
 
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
@@ -242,6 +244,7 @@ function buildSeed() {  const seed = {
       mindMap: clone(subject.mindMap),
       points: clone(subject.points),
       questions: clone(subject.questions),
+      examQuestions: clone(subject.examQuestions || []),
       assignments: clone(subject.assignments),
       examPapers: buildExamPapers(subject).map(paper => ({ ...paper, classId: DEFAULT_CLASS })),
       textbook,
@@ -254,9 +257,10 @@ function buildSeed() {  const seed = {
         dueAt: Date.now() + 2 * 24 * 3600 * 1000
       }]
     };
-    /* 课后作业默认 3 天后截止 */
+    /* 课后作业默认 3 天后截止；课堂问答默认限时 10 分钟 */
     seed.courses[id].assignments.forEach(a => {
       if (a.mode === 'homework') a.dueAt = Date.now() + 3 * 24 * 3600 * 1000;
+      if (a.mode === 'quiz' && !a.duration) a.duration = 10;
     });
   });
 

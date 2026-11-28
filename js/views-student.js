@@ -336,14 +336,15 @@ function aiChatView() {
     }
     const point = msg.pointId ? P(msg.pointId) : null;
     const page = msg.page || (point ? point.page : null);
+    const pending = !!msg.pending;
     return `
     <div class="chat-msg bot">
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
-        ${esc(msg.text)}
-        ${page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
-        ${msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
-        ${msg.source ? `
+        ${pending ? thinkingHtml() : esc(msg.text)}
+        ${!pending && page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
+        ${!pending && msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
+        ${!pending && msg.source ? `
           <div class="cite-source">
             <b>教材原文 · 第 ${msg.source.page} 页</b>
             <span>${esc(msg.source.section || '')}${msg.source.title ? ' · ' + esc(msg.source.title) : ''}</span>
@@ -429,7 +430,8 @@ function renderAiHomeQuestion(tabs) {
   }).join('');
 
   const bubbles = chats.map(c => {
-    const text = esc(c.text).replace(/\n/g, '<br>');
+    const pending = !!c.pending;
+    const text = pending ? thinkingHtml() : esc(c.text).replace(/\n/g, '<br>');
     if (c.role === 'me') {
       return `<div class="chat-msg user"><div class="chat-bubble">${text}</div></div>`;
     }
@@ -438,7 +440,7 @@ function renderAiHomeQuestion(tabs) {
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
         ${text}
-        ${point ? `<button class="cite-chip" data-act="open-courseware" data-page="${point.page}">查看教材第 ${point.page} 页 →</button>` : ''}
+        ${!pending && point ? `<button class="cite-chip" data-act="open-courseware" data-page="${point.page}">查看教材第 ${point.page} 页 →</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1013,7 +1015,7 @@ function playerView(assignmentId) {
         <h1>${esc(assignment.title)}</h1>
         <p>${assignment.questionIds.length} 题 · 满分 ${totalScore(assignment.questionIds)} 分 · ${esc(assignment.note || '')}</p>
       </div>
-      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : ''}
+      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
     </div>`;
 
   if (sub) return head + resultView(assignment, sub);
@@ -1077,9 +1079,9 @@ function playerView(assignmentId) {
         <div class="divider"></div>
         <div class="privacy-note">
           <span>📌</span>
-          <div>提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。</div>
+          <div>${assignment.mode === 'quiz' ? '课堂问答：倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
         </div>
-        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">提交作业</button>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">${assignment.mode === 'quiz' ? '交卷' : '提交作业'}</button>
       </div>
     </div>
   </div>`;
@@ -1128,7 +1130,7 @@ function resultView(assignment, sub) {
 
       ${review ? `
         <div class="review-card ai">
-          <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span></div>
+          <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
           <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
           <button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${P(q.knowledgeId)?.page} 页原文</button>
         </div>` : ''}

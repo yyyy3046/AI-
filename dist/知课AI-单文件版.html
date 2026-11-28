@@ -381,6 +381,18 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 /* 学生答题页：题目 + 侧边答题卡 */
 .practice-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
 .practice-side { position: sticky; top: 76px; }
+
+/* 课堂问答倒计时 */
+.quiz-timer {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  background: #fff7ed; color: #c2410c;
+  border: 1px solid #fed7aa;
+  font-weight: 700; font-size: 16px; letter-spacing: 1px;
+  white-space: nowrap;
+}
+.quiz-timer.urgent { background: #fef2f2; color: #b91c1c; border-color: #fecaca; animation: qt-pulse 1s infinite; }
+@keyframes qt-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .grid-2 > .card + .card, .grid-3 > .card + .card, .grid-4 > .card + .card { margin-top: 0; }
 
@@ -1589,12 +1601,40 @@ button.practice-item:hover { border-color: #B9C8FF; }
 .preview-body img { max-width: 92vw; max-height: 92vh; border-radius: 8px; display: block; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
 .preview-close { position: absolute; top: -14px; right: -14px; width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; color: #222; font-size: 20px; line-height: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.4); }
 
+/* ============ AI 大模型接入 ============ */
+/* 思考中动画 */
+.ai-thinking { display: inline-flex; align-items: center; gap: 5px; color: var(--text-2); font-style: normal; }
+.ai-thinking em { font-style: normal; font-size: 12.5px; margin-left: 2px; opacity: .8; }
+.ai-thinking .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ai); opacity: .4; animation: aiDot 1.2s infinite ease-in-out; }
+.ai-thinking .dot:nth-child(2) { animation-delay: .2s; }
+.ai-thinking .dot:nth-child(3) { animation-delay: .4s; }
+@keyframes aiDot { 0%,80%,100% { transform: scale(.7); opacity: .35; } 40% { transform: scale(1); opacity: 1; } }
+
+/* 顶栏模型入口 */
+.llm-entry { display: inline-flex; align-items: center; gap: 6px; }
+.llm-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd2e0; display: inline-block; }
+.llm-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+
+/* 设置弹窗布局 */
+.llm-modal { max-width: 520px; }
+.llm-row { display: flex; align-items: center; gap: 10px; }
+.llm-key-row { display: flex; gap: 8px; }
+.llm-key-row .input { flex: 1; min-width: 0; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 开关 */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd2e0; border-radius: 22px; transition: .25s; }
+.switch .slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .25s; }
+.switch input:checked + .slider { background: var(--brand); }
+.switch input:checked + .slider::before { transform: translateX(18px); }
+
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-/* ===== js/data-math.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
 /* 高等数学：内容按用户提供的教材扫描件（第一章 第13—24页）整理 */
@@ -1807,11 +1847,74 @@ window.SUBJECTS.math = {
   assignments: [
     {
       id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 函数的极限',
-      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
+      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成', duration: 10
     },
     {
       id: 'm-a2', mode: 'homework', title: '课后作业 · 极限的运算法则',
       questionIds: ['m-q3', 'm-q4'], publishedAt: '11-27 16:40', note: '教材 P22—23 例题后可完成'
+    }
+  ],
+  /* 自主练习真题库：基于课件知识点编制的考试风格题，供学生课下自主练习 */
+  examQuestions: [
+    {
+      id: 'm-eq1', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k9',
+      stem: '极限 lim(x→2) (x²−4)/(x−2) 的值是？',
+      options: ['4', '2', '0', '不存在'], answer: 0,
+      hints: ['分子是平方差，先因式分解。', 'x²−4=(x−2)(x+2)，约去 x−2。', '完整解析：原式 = lim(x→2)(x+2) = 4。'],
+      diagnosis: { reason: '看到 0/0 直接填 0，没有先因式分解约分。', advice: '0/0 型要先变形再代入。', similar: '求 lim(x→3)(x²−9)/(x−3)。' }
+    },
+    {
+      id: 'm-eq2', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k5',
+      stem: '当 x→0 时，下列变量中是无穷小的是？',
+      options: ['x²', '1/x', 'sin x / x', '2'], answer: 0,
+      hints: ['无穷小是极限为 0 的变量。', '逐个算 x→0 时的极限。', '完整解析：x²→0，是无穷小；其余分别为 ∞、1、2。'],
+      diagnosis: { reason: '把“很小的数”当成无穷小，或没算极限。', advice: '回到第 17 页定义 3，必须指明变化过程。', similar: '判断 x→0 时 x sin(1/x) 是否为无穷小。' }
+    },
+    {
+      id: 'm-eq3', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k7',
+      stem: '极限 lim(x→1) (x²−1)/(x²+x−2) 的值是？',
+      options: ['2/3', '1', '0', '3/2'], answer: 0,
+      hints: ['分子分母都含因子 (x−1)。', '分解：分子 (x−1)(x+1)，分母 (x−1)(x+2)。', '完整解析：约分得 (x+1)/(x+2) → 2/3。'],
+      diagnosis: { reason: '分母因式分解错误或约分时漏项。', advice: '先验证 x=1 使分子分母同 0，再分解。', similar: '求 lim(x→1)(x³−1)/(x²−1)。' }
+    },
+    {
+      id: 'm-eq4', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k3',
+      stem: '设 f(x)={ x², x≤0; x+1, x>0 }，则 lim(x→0) f(x) 为？',
+      options: ['不存在', '0', '1', '2'], answer: 0,
+      hints: ['分段点处要分别算左右极限。', '左极限 x→0⁻ 用 x²，右极限 x→0⁺ 用 x+1。', '完整解析：左极限 0，右极限 1，不相等，故极限不存在。'],
+      diagnosis: { reason: '只算了单侧极限，或忽略分段。', advice: '分段函数在分段点必须讨论左右极限。', similar: '讨论 f(x)={x, x<1; 2x−1, x≥1} 在 x=1 的极限。' }
+    },
+    {
+      id: 'm-eq5', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k1',
+      stem: '极限 lim(x→∞) (2x+3)/(x−1) 的值是？',
+      options: ['2', '∞', '0', '1'], answer: 0,
+      hints: ['分子分母同除以最高次幂 x。', '看最高次项系数之比。', '完整解析：(2+3/x)/(1−1/x) → 2。'],
+      diagnosis: { reason: '误以为分子分母都趋于无穷所以极限为 ∞。', advice: '同次多项式比的极限 = 最高次系数之比。', similar: '求 lim(x→∞)(3x²−1)/(x²+2)。' }
+    },
+    {
+      id: 'm-eq6', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k8',
+      stem: '极限 lim(x→0) sin(3x)/x 的值是？',
+      options: ['3', '1', '0', '不存在'], answer: 0,
+      hints: ['用重要极限 lim(u→0) sin u / u = 1。', '把 3x 看作一个整体。', '完整解析：原式 = 3·lim(x→0) sin(3x)/(3x) = 3。'],
+      diagnosis: { reason: '直接认为 sin(3x)/x → 1，漏了系数。', advice: '凑出 sin u / u 的形式，注意系数。', similar: '求 lim(x→0) tan(2x)/x。' }
+    },
+    {
+      id: 'm-eq7', type: 'short', source: '真题', difficulty: '基础', score: 10, knowledgeId: 'm-k10',
+      stem: '求极限 lim(x→+∞) (√(x²+x) − x)，写出关键步骤。',
+      options: [], answer: null,
+      keywords: ['分子有理化', '1/2'],
+      reference: '对根式差作分子有理化：√(x²+x)−x = x/(√(x²+x)+x)，分子分母同除以 x 得 1/(√(1+1/x)+1) → 1/2。',
+      hints: ['根式差想办法有理化。', '分子分母同乘共轭式 √(x²+x)+x。', '完整解析：有理化后 = x/(√(x²+x)+x) → 1/2。'],
+      diagnosis: { reason: '没有有理化，或同除 x 时漏除分子。', advice: '根式差极限优先分子有理化。', similar: '求 lim(x→+∞)(√(x²−x)−x)。' }
+    },
+    {
+      id: 'm-eq8', type: 'short', source: '真题', difficulty: '提高', score: 10, knowledgeId: 'm-k7',
+      stem: '叙述极限四则运算法则的条件，并举例说明为什么只有当 lim f(x) 与 lim g(x) 都存在时才能使用这些法则。',
+      options: [], answer: null,
+      keywords: ['lim f', 'lim g', '存在', '条件'],
+      reference: '若 lim f=A、lim g=B 都存在，则 lim(f±g)=A±B、lim(fg)=AB、lim(f/g)=A/B(B≠0)。条件是两个极限都存在；反例：x→∞ 时 f=x、g=−x，lim f、lim g 都不存在，但 lim(f+g)=0 存在，说明法则条件不满足时结论不能反推。',
+      hints: ['先写出法则成立的前提。', '举一个两个极限都不存在但和存在的反例。', '完整解析：见 reference。'],
+      diagnosis: { reason: '只背结论没写条件，或反例不对。', advice: '法则是充分条件，要会举反例说明必要性。', similar: '举例说明 lim f 存在、lim g 不存在时 lim(f+g) 一定不存在。' }
     }
   ],
   textbook: {
@@ -1950,7 +2053,6 @@ window.SUBJECTS.math = {
 
 </script>
 <script>
-/* ===== js/data-physics.js ===== */
 window.SUBJECTS = window.SUBJECTS || {};
 
 /* 大学物理：内容按用户提供的教材扫描件（第六章 静电场，教材 P133—173）整理 */
@@ -2237,11 +2339,74 @@ window.SUBJECTS.physics = {
   assignments: [
     {
       id: 'p-a1', mode: 'quiz', title: '第 1 次课堂问答 · 电场强度与高斯定理',
-      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
+      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成', duration: 10
     },
     {
       id: 'p-a2', mode: 'homework', title: '课后作业 · 电势与电介质',
       questionIds: ['p-q3', 'p-q4'], publishedAt: '11-27 16:40', note: '教材 P157—164 例题后可完成'
+    }
+  ],
+  /* 自主练习真题库：基于课件知识点编制的考试风格题，供学生课下自主练习 */
+  examQuestions: [
+    {
+      id: 'p-eq1', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k2',
+      stem: '真空中两点电荷 q₁=+2.0×10⁻⁹ C、q₂=−3.0×10⁻⁹ C 相距 0.10 m，它们之间库仑力的大小约为（k=9.0×10⁹ N·m²/C²）？',
+      options: ['5.4×10⁻⁶ N', '5.4×10⁻⁵ N', '5.4×10⁻⁷ N', '2.7×10⁻⁶ N'], answer: 0,
+      hints: ['用库仑定律 F=k|q₁q₂|/r²。', '代入数值计算。', '完整解析：F=9e9×6e-18/0.01=5.4×10⁻⁶ N。'],
+      diagnosis: { reason: '公式记错或数量级算错。', advice: '记住 F=kq₁q₂/r²，注意 10 的幂。', similar: '求 q₁=1e-9C、q₂=2e-9C、r=0.3m 时的力。' }
+    },
+    {
+      id: 'p-eq2', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k4',
+      stem: '真空中两个等量正点电荷，在它们连线中点处的合场强为？',
+      options: ['0', '指向其中一个电荷', '垂直连线向外', '无法确定'], answer: 0,
+      hints: ['两个点电荷在中点产生的场强大小相等。', '方向相反，相互抵消。', '完整解析：两场强等大反向，合场强为 0。'],
+      diagnosis: { reason: '只算了一个电荷的场强，或方向判断错。', advice: '场强是矢量，要叠加。', similar: '等量异种电荷连线中点场强是多少？' }
+    },
+    {
+      id: 'p-eq3', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'p-k8',
+      stem: '无限大均匀带电平面（面电荷密度 σ）两侧的电场强度大小为？',
+      options: ['σ/(2ε₀)', 'σ/ε₀', '0', '2σ/ε₀'], answer: 0,
+      hints: ['用高斯定理，取柱形高斯面。', '两个底面都有通量。', '完整解析：2E·ΔS=σΔS/ε₀ → E=σ/(2ε₀)。'],
+      diagnosis: { reason: '漏算一个底面的通量，得到 σ/ε₀。', advice: '高斯面两侧都穿出电场线。', similar: '两带等量异号电荷的无限大平面间场强是多少？' }
+    },
+    {
+      id: 'p-eq4', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k10',
+      stem: '匀强电场中场强大小为 E，沿电场方向相距 d 的两点之间电势差的大小为？',
+      options: ['Ed', 'E/d', 'd/E', '0'], answer: 0,
+      hints: ['匀强电场中 U=Ed（d 沿场强方向）。', '电势差 = 场强 × 沿场方向距离。', '完整解析：U=Ed。'],
+      diagnosis: { reason: '公式记反或用错距离。', advice: 'U=Ed 中 d 必须是沿电场方向的投影。', similar: '场强 200V/m，沿场方向 0.5m 两点电势差多大？' }
+    },
+    {
+      id: 'p-eq5', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k13',
+      stem: '导体处于静电平衡时，其内部电场强度为？',
+      options: ['0', 'σ/ε₀', '不为零', '取决于导体形状'], answer: 0,
+      hints: ['静电平衡时内部自由电子不再定向移动。', '内部场强必须为零。', '完整解析：静电平衡导体内部 E=0。'],
+      diagnosis: { reason: '混淆内部与表面场强。', advice: '内部 E=0，表面场强垂直表面。', similar: '静电平衡时导体是等势体吗？' }
+    },
+    {
+      id: 'p-eq6', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'p-k11',
+      stem: '真空中点电荷 +q 在距它 r 处产生的电势（取无穷远为零势点）为？',
+      options: ['kq/r', 'kq/r²', '−kq/r', '0'], answer: 0,
+      hints: ['点电荷电势公式 V=kq/r。', '注意是 1/r 不是 1/r²。', '完整解析：V=kq/r。'],
+      diagnosis: { reason: '把电势公式和场强公式混淆。', advice: '场强 ∝ 1/r²，电势 ∝ 1/r。', similar: 'q=2e-9C、r=0.5m 处电势多大？' }
+    },
+    {
+      id: 'p-eq7', type: 'short', source: '真题', difficulty: '提高', score: 10, knowledgeId: 'p-k7',
+      stem: '叙述静电场的高斯定理，写出其数学表达式，并说明用高斯定理求场强时对电荷分布对称性的要求。',
+      options: [], answer: null,
+      keywords: ['∮E·dS', 'q/ε₀', '对称性'],
+      reference: '高斯定理：∮_S E·dS = q_内 / ε₀，即穿过任意闭合曲面的电场强度通量等于该曲面所包围电荷的代数和除以 ε₀。用它求场强要求电荷分布具有球对称、轴对称或面对称，使高斯面上 E 大小处处相等、方向与面元法向平行（或垂直），才能把 E 提到积分号外。',
+      hints: ['先写定理的文字表述和公式。', '再说明能解出 E 的对称性条件。', '完整解析：见 reference。'],
+      diagnosis: { reason: '公式写错，或没说清对称性要求。', advice: '高斯定理普遍成立，但只有对称分布才能用来求 E。', similar: '为什么一般带电体不能直接用高斯定理求场强？' }
+    },
+    {
+      id: 'p-eq8', type: 'short', source: '真题', difficulty: '基础', score: 10, knowledgeId: 'p-k15',
+      stem: '写出平行板电容器电容的公式，并说明插入电介质后电容如何变化及其原因。',
+      options: [], answer: null,
+      keywords: ['C=εS/d', '电介质', '增大'],
+      reference: '平行板电容器 C=εS/d，其中 ε=ε_r ε₀ 为介质的介电常数。插入电介质后 ε_r>1，ε 增大，因此电容 C 增大；原因是介质极化产生束缚电荷，削弱了极板间场强，在相同电压下可容纳更多电荷。',
+      hints: ['先写电容公式。', '说明插入介质后哪个量变了。', '完整解析：见 reference。'],
+      diagnosis: { reason: '公式中 ε 写成 ε₀，或没解释原因。', advice: '注意真空与介质的区别在于 ε_r。', similar: '插入金属板（不接触）电容如何变？' }
     }
   ],
   textbook: {
@@ -2356,7 +2521,6 @@ window.SUBJECTS.physics = {
 
 </script>
 <script>
-/* ===== js/data.js ===== */
 /* ============================================================
  * 知课 AI · 课程与知识库数据核心
  * 支持两门课程：高等数学 / 大学物理
@@ -2564,7 +2728,7 @@ function buildTextbook(subject) {
 }
 
 function buildSeed() {  const seed = {
-    version: 4,
+    version: 5,
   storageKey: STORAGE_KEY,
     session: { role: null, userId: null },
     courseId: 'math',
@@ -2581,7 +2745,9 @@ function buildSeed() {  const seed = {
     exerciseSubmissions: [],
     aiQuestions: [],
     messages: [],
-    selfCheck: {}
+    selfCheck: {},
+    practiceRecords: [],
+    quizStart: {}
   };
 
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
@@ -2601,6 +2767,7 @@ function buildSeed() {  const seed = {
       mindMap: clone(subject.mindMap),
       points: clone(subject.points),
       questions: clone(subject.questions),
+      examQuestions: clone(subject.examQuestions || []),
       assignments: clone(subject.assignments),
       examPapers: buildExamPapers(subject).map(paper => ({ ...paper, classId: DEFAULT_CLASS })),
       textbook,
@@ -2613,9 +2780,10 @@ function buildSeed() {  const seed = {
         dueAt: Date.now() + 2 * 24 * 3600 * 1000
       }]
     };
-    /* 课后作业默认 3 天后截止 */
+    /* 课后作业默认 3 天后截止；课堂问答默认限时 10 分钟 */
     seed.courses[id].assignments.forEach(a => {
       if (a.mode === 'homework') a.dueAt = Date.now() + 3 * 24 * 3600 * 1000;
+      if (a.mode === 'quiz' && !a.duration) a.duration = 10;
     });
   });
 
@@ -2726,7 +2894,6 @@ function buildSeed() {  const seed = {
 
 </script>
 <script>
-/* ===== js/store.js ===== */
 /* ============================================================
  * 状态管理、本地持久化、AI 服务
  * ============================================================ */
@@ -2783,7 +2950,9 @@ const ui = {
   wrongPointFilter: '',
   redo: null,
   exTargets: null,
-  reviewPointId: null
+  reviewPointId: null,
+  llmSettingsOpen: false,
+  llmPending: false
 };
 
 function loadDb() {
@@ -2791,9 +2960,11 @@ function loadDb() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 4 && parsed.courses) {
+      if (parsed && parsed.version === 5 && parsed.courses) {
         if (!Array.isArray(parsed.redoRecords)) parsed.redoRecords = [];
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
+        if (!Array.isArray(parsed.practiceRecords)) parsed.practiceRecords = [];
+        if (!parsed.quizStart || typeof parsed.quizStart !== 'object') parsed.quizStart = {};
         if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
@@ -2801,6 +2972,11 @@ function loadDb() {
             if (typeof d.title === 'string' && d.title.indexOf('课后习题') === 0) {
               d.title = d.title.replace(/^课后习题\s*·\s*/, '');
             }
+          });
+          /* 兼容旧数据：缺少真题库或限时字段时补默认值 */
+          if (!Array.isArray(data.examQuestions)) data.examQuestions = [];
+          (data.assignments || []).forEach(a => {
+            if (a.mode === 'quiz' && !a.duration) a.duration = 10;
           });
         });
         useCourse(parsed, parsed.courseId || 'math');
@@ -2921,6 +3097,23 @@ function remainingText(assignment) {
   const hours = Math.floor(diff / 3600000);
   if (hours >= 24) return `剩余 ${Math.floor(hours / 24)} 天 ${hours % 24} 小时`;
   return `剩余 ${hours} 小时 ${Math.floor((diff % 3600000) / 60000)} 分`;
+}
+
+/* ---------------- 课堂问答倒计时 ---------------- */
+
+function formatClock(totalSec) {
+  const s = Math.max(0, Math.floor(Number(totalSec) || 0));
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+/* 距课堂问答结束的秒数；未开始 / 非问答 / 无时长返回 null（不显示倒计时） */
+function quizRemaining(assignment) {
+  if (!assignment || assignment.mode !== 'quiz' || !assignment.duration) return null;
+  const startedAt = db.quizStart && db.quizStart[assignment.id];
+  if (!startedAt) return null;
+  return Math.round(assignment.duration * 60 - (Date.now() - startedAt) / 1000);
 }
 
 function submissionOf(subId) {
@@ -3203,6 +3396,137 @@ const mockAi = {
   }
 };
 
+/* ============================================================
+ * 大模型接入（OpenAI 兼容接口，前端直连，Key 仅存本机）
+ * ============================================================ */
+
+const LLM_STORAGE_KEY = 'zhike_llm_config';
+
+/* 预设：均已验证支持浏览器 CORS 直连 */
+const LLM_PRESETS = {
+  agnes:       { label: 'Agnes AI（免费）', baseUrl: 'https://api.agnes-ai.cn/v1', model: 'agnes-3.0-flash' },
+  deepseek:    { label: 'DeepSeek',          baseUrl: 'https://api.deepseek.com/v1',    model: 'deepseek-chat' },
+  siliconflow: { label: '硅基流动',           baseUrl: 'https://api.siliconflow.cn/v1',  model: 'Qwen/Qwen2.5-7B-Instruct' },
+  openrouter:  { label: 'OpenRouter',         baseUrl: 'https://openrouter.ai/api/v1',   model: 'openai/gpt-4o-mini' },
+  dashscope:   { label: '通义千问',           baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  custom:      { label: '自定义',             baseUrl: '', model: '' }
+};
+
+let llmConfig = loadLlmConfig();
+
+function loadLlmConfig() {
+  const base = {
+    enabled: true, baseUrl: LLM_PRESETS.agnes.baseUrl, model: LLM_PRESETS.agnes.model, apiKey: '',
+    visionModel: '', visionBaseUrl: '', visionApiKey: ''
+  };
+  try {
+    const raw = localStorage.getItem(LLM_STORAGE_KEY);
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && typeof c === 'object') {
+        // 迁移：旧版误用了 apihub 域名，Agnes 官方正确域名为 api.agnes-ai.cn
+        let url = (c.baseUrl || base.baseUrl).replace(/\/+$/, '');
+        url = url.replace(/apihub\.agnes-ai\.(com|cn)/, 'api.agnes-ai.cn');
+        return {
+          enabled: c.enabled !== false,
+          baseUrl: url,
+          model: c.model || base.model,
+          apiKey: c.apiKey || '',
+          visionModel: c.visionModel || '',
+          visionBaseUrl: (c.visionBaseUrl || '').replace(/\/+$/, ''),
+          visionApiKey: c.visionApiKey || ''
+        };
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return base;
+}
+
+function saveLlmConfig(cfg) {
+  llmConfig = {
+    enabled: cfg.enabled !== false,
+    baseUrl: String(cfg.baseUrl || '').trim().replace(/\/+$/, ''),
+    model: String(cfg.model || '').trim(),
+    apiKey: cfg.apiKey || '',
+    visionModel: String(cfg.visionModel || '').trim(),
+    visionBaseUrl: String(cfg.visionBaseUrl || '').trim().replace(/\/+$/, ''),
+    visionApiKey: cfg.visionApiKey || ''
+  };
+  try { localStorage.setItem(LLM_STORAGE_KEY, JSON.stringify(llmConfig)); } catch (e) { /* ignore */ }
+}
+
+/** 视觉模型生效配置：未单独配置时回退到文本模型配置 */
+function visionConfig() {
+  return {
+    baseUrl: (llmConfig.visionBaseUrl || llmConfig.baseUrl || '').replace(/\/+$/, ''),
+    model: llmConfig.visionModel || llmConfig.model || '',
+    apiKey: llmConfig.visionApiKey || llmConfig.apiKey || ''
+  };
+}
+
+/** 视觉模型是否可用（启用 + 有 Key + 有地址和模型；视觉字段空时回退文本配置） */
+function llmVisionReady() {
+  if (llmConfig.enabled === false) return false;
+  const v = visionConfig();
+  return !!(v.baseUrl && v.model && v.apiKey);
+}
+
+function clearLlmConfig() {
+  try { localStorage.removeItem(LLM_STORAGE_KEY); } catch (e) { /* ignore */ }
+  llmConfig = loadLlmConfig();
+}
+
+/** 是否已配置可用（启用 + 有 Key + 有地址和模型） */
+function llmReady() {
+  return !!(llmConfig.enabled && llmConfig.apiKey && llmConfig.baseUrl && llmConfig.model);
+}
+
+/**
+ * 调用大模型（OpenAI 兼容 /chat/completions）。
+ * @returns {Promise<{ok:boolean,text?:string,reason?:string,error?:string}>}
+ */
+async function callLLM(opts) {
+  const useVision = !!(opts && opts.useVision);
+  const cfg = useVision ? visionConfig() : llmConfig;
+  const ready = useVision ? llmVisionReady() : llmReady();
+  if (!ready) return { ok: false, reason: 'not-configured' };
+  const { messages, temperature = 0.5, maxTokens = 900, signal } = opts || {};
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 40000);
+  if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
+  try {
+    const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cfg.apiKey}`
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      let detail = '';
+      try { detail = (await resp.text()).slice(0, 220); } catch (e) { /* ignore */ }
+      return { ok: false, reason: `http-${resp.status}`, error: detail || resp.statusText };
+    }
+    const data = await resp.json();
+    const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (text == null) return { ok: false, reason: 'empty', error: JSON.stringify(data).slice(0, 220) };
+    return { ok: true, text: String(text) };
+  } catch (e) {
+    clearTimeout(timer);
+    const aborted = e && (e.name === 'AbortError' || (e.message && /abort/i.test(e.message)));
+    return { ok: false, reason: aborted ? 'timeout' : 'network', error: String((e && e.message) || e) };
+  }
+}
+
 /* ---------------- 提示 ---------------- */
 
 let toastTimer = null;
@@ -3226,7 +3550,6 @@ function esc(value) {
 
 </script>
 <script>
-/* ===== js/actions.js ===== */
 /* ============================================================
  * 业务动作：登录、课件生成、发布、作答、批改、问答
  * ============================================================ */
@@ -3840,7 +4163,7 @@ function exitRedo() {
   render();
 }
 
-function submitRedo() {
+async function submitRedo() {
   const redo = ui.redo;
   if (!redo || redo.result) return;
   const data = db.courses[redo.courseId];
@@ -3854,17 +4177,19 @@ function submitRedo() {
     return;
   }
 
-  const items = questions.map(q => {
+  const items = [];
+  for (const q of questions) {
     const value = redo.answers[q.id];
-    let score;
-    if (q.type === 'single') { const t = answerText(value).trim(); score = (t !== '' && Number(t) === q.answer) ? q.score : 0; }
-    else {
-      const text = answerText(value);
-      const imgs = answerImages(value);
-      score = (!text.trim() && imgs.length) ? Math.round(q.score * 0.4) : mockAi.gradeShortAnswer(q, text).score;
+    let score, review = null;
+    if (q.type === 'single') {
+      const t = answerText(value).trim();
+      score = (t !== '' && Number(t) === q.answer) ? q.score : 0;
+    } else {
+      review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
+      score = review.score;
     }
-    return { qid: q.id, score, max: q.score, answer: value };
-  });
+    items.push({ qid: q.id, score, max: q.score, answer: value, review });
+  }
   const total = items.reduce((sum, item) => sum + item.score, 0);
   const max = items.reduce((sum, item) => sum + item.max, 0);
 
@@ -3873,7 +4198,7 @@ function submitRedo() {
   db.redoRecords.unshift({
     id: `redo-${Date.now()}`,
     courseId: redo.courseId,
-    at: '今天',
+    at: nowStamp(),
     items
   });
   saveDb();
@@ -4571,6 +4896,7 @@ function aiHomeReply(text, page) {
       pointId: point.id,
       page: point.page,
       grounded: true,
+      skipLLM: true,
       source: {
         page: point.page,
         title: point.title,
@@ -4604,6 +4930,102 @@ function aiHomeReply(text, page) {
     },
     answer: `${matched ? '' : `教材中没有直接出现你这句话的表述，我先按当前页「${point.title}」回答：\n\n`}${point.summary}\n\n核心结论：${point.formulas[0]}\n\n${citePoint(point, true)}`
   };
+}
+
+/* ---------------- 大模型提示词 ---------------- */
+
+/**
+ * 教材问答：把匹配到的知识点内容作为【教材片段】喂给模型，
+ * 约束其严格依据教材、标注页码；history 已包含当前用户提问（含多轮上下文）。
+ */
+function buildTextbookMessages(history, point, page) {
+  const messages = [];
+  if (point) {
+    const where = sectionTitleOfPoint(point);
+    messages.push({
+      role: 'system',
+      content: [
+        `你是「${db.course.name}」课程的 AI 助教，正在回答学生关于教材的提问。`,
+        `你必须严格依据下面给出的【教材片段】作答，禁止引入教材之外的内容。`,
+        ``,
+        `【教材片段】`,
+        `课程：${db.course.name}`,
+        `章节：${where.chapter || ''} / 小节：${where.section || ''}`,
+        `页码：第 ${point.page} 页`,
+        `知识点：${point.title}`,
+        point.summary ? `内容摘要：${point.summary}` : '',
+        point.formulas && point.formulas.length ? `核心公式：${point.formulas.join('；')}` : '',
+        point.params && point.params.length ? `符号说明：${point.params.map(p => `${p.sym} 表示${p.name}`).join('；')}` : '',
+        point.excerpt ? `教材原文：${point.excerpt}` : '',
+        ``,
+        `回答要求：`,
+        `1. 用中文，先给结论再展开，分点清晰。`,
+        `2. 只能依据上述教材片段；如果学生的问题在片段中没有依据，直接说明“教材未覆盖该内容”，不要猜测或发挥。`,
+        `3. 在回答中自然提及“第 ${point.page} 页「${point.title}」”，方便学生回到原文核对。`,
+        `4. 不要整段复述教材原文，页面会单独展示原文卡片。`
+      ].filter(Boolean).join('\n')
+    });
+  } else {
+    messages.push({
+      role: 'system',
+      content: `你是「${db.course.name}」课程的 AI 助教。当前选中的教材页（第 ${page || '?'} 页）没有匹配到相关知识点。如果学生的问题不在教材范围内，请直接说明“教材未覆盖该内容”，不要额外发挥。用中文简洁回答。`
+    });
+  }
+  (history || []).forEach(m => {
+    if (!m || m.pending) return;
+    if (m.role === 'user') messages.push({ role: 'user', content: m.text });
+    else if (m.role === 'ai') messages.push({ role: 'assistant', content: m.text });
+  });
+  return messages;
+}
+
+/**
+ * 作业题追问：把题目 + 关联教材内容喂给模型，引导思路、不直接给答案；
+ * history 已包含当前追问（含多轮上下文）。
+ */
+function buildTutorMessages(history, q) {
+  const point = q ? P(q.knowledgeId) : null;
+  const messages = [];
+  if (q && point) {
+    const where = sectionTitleOfPoint(point);
+    const opts = q.options ? q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n') : '';
+    messages.push({
+      role: 'system',
+      content: [
+        `你是「${db.course.name}」课程的 AI 助教，正在辅导学生解一道作业题。`,
+        ``,
+        `【题目】`,
+        q.stem,
+        opts ? `选项：\n${opts}` : '',
+        q.type === 'single' ? `（这是单选题，正确选项是 ${String.fromCharCode(65 + q.answer)}；学生未提交前不要直接透露答案）` : '',
+        ``,
+        `【关联教材】`,
+        `知识点：${point.title}（第 ${point.page} 页，${where.section || ''}）`,
+        point.summary ? `摘要：${point.summary}` : '',
+        point.formulas && point.formulas.length ? `公式：${point.formulas.join('；')}` : '',
+        point.excerpt ? `教材原文：${point.excerpt}` : '',
+        ``,
+        `回答要求：`,
+        `1. 用中文，像老师一样引导思路，不要直接给出最终答案（除非学生明确表示已提交、想看解析）。`,
+        `2. 严格依据题目和上述教材内容，不超纲发挥。`,
+        `3. 在回答中提及“第 ${point.page} 页”，帮助学生回看原文。`,
+        `4. 简洁，每次回复聚焦一步。`
+      ].filter(Boolean).join('\n')
+    });
+  } else {
+    messages.push({ role: 'system', content: '你是课程 AI 助教，辅导学生解题，引导思路、不直接给答案，依据课件内容作答，用中文简洁回复。' });
+  }
+  (history || []).forEach(c => {
+    if (!c || c.pending) return;
+    if (c.role === 'me' || c.role === 'user') messages.push({ role: 'user', content: c.text });
+    else if (c.role === 'ai') messages.push({ role: 'assistant', content: c.text });
+  });
+  return messages;
+}
+
+/** 滚动聊天区域到底部（兼容 AI 问答页与答疑抽屉） */
+function scrollChatBottom() {
+  document.querySelectorAll('.chat-body, .drawer .chat').forEach(el => { el.scrollTop = el.scrollHeight; });
 }
 
 /** 当前提问关联的教材页：优先所选小节，其次手动选择，最后第一页 */
@@ -4648,23 +5070,41 @@ function setAiChapter(chapterId) {
   setAiSection(group.sections[0].section.id);
 }
 
-function askAiHome(text) {
+async function askAiHome(text) {
   const question = String(text || '').trim();
   if (!question) {
     toast('先输入你的问题');
     return false;
   }
   const page = aiCurrentPage();
-  const reply = aiHomeReply(question, page);
+  const reply = aiHomeReply(question, page); // 复用现有匹配逻辑：拿到知识点/页码/原文/兜底回答
+
   ui.aiHomeChat.push({ role: 'user', text: question });
-  ui.aiHomeChat.push({
-    role: 'ai',
-    text: reply.answer,
-    pointId: reply.pointId,
-    page: reply.page,
-    grounded: reply.grounded,
-    source: reply.source
-  });
+  const pendingMsg = {
+    role: 'ai', text: '', pending: true,
+    pointId: reply.pointId, page: reply.page,
+    grounded: reply.grounded, source: reply.source
+  };
+  ui.aiHomeChat.push(pendingMsg);
+  render();
+  scrollChatBottom();
+
+  /* 默认用本地回答兜底；配置了大模型且非固定出题意图时，调用真实模型 */
+  let answerText = reply.answer;
+  let usedLLM = false;
+  if (llmReady() && !reply.skipLLM) {
+    const point = reply.pointId ? P(reply.pointId) : null;
+    const messages = buildTextbookMessages(ui.aiHomeChat, point, page);
+    const res = await callLLM({ messages, temperature: 0.5, maxTokens: 900 });
+    if (res.ok && res.text.trim()) {
+      answerText = res.text.trim();
+      usedLLM = true;
+    }
+  }
+
+  pendingMsg.text = answerText;
+  pendingMsg.pending = false;
+  pendingMsg.usedLLM = usedLLM;
 
   db.aiQuestions.unshift({
     id: `aiq-${Date.now()}`,
@@ -4673,13 +5113,14 @@ function askAiHome(text) {
     studentId: 's1',
     studentName: '李同学',
     question,
-    answer: reply.answer,
+    answer: answerText,
     knowledgeId: reply.pointId,
     createdAt: '今天 10:5' + (new Date().getMinutes() % 10),
     reviewed: false
   });
   saveDb();
   render();
+  scrollChatBottom();
   return true;
 }
 
@@ -4794,12 +5235,107 @@ function removeAnswerImage(kind, qid, idx) {
 function openPreviewImage(src) { ui.previewImage = src || null; render(); }
 function closePreviewImage() { ui.previewImage = null; render(); }
 
+/* ---------------- 大模型判分 ---------------- */
+
+function nowStamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 从模型返回文本中提取第一个 JSON 对象 */
+function extractJsonObject(s) {
+  if (typeof s !== 'string') return null;
+  const i = s.indexOf('{');
+  const j = s.lastIndexOf('}');
+  if (i < 0 || j < i) return null;
+  try { return JSON.parse(s.slice(i, j + 1)); } catch (e) { return null; }
+}
+
+/** 本地回退评分：无模型 / 模型失败时使用，保持与原逻辑一致 */
+function localGradeShort(q, text, images) {
+  const point = P(q.knowledgeId);
+  const hasImg = Array.isArray(images) && images.length;
+  let review;
+  if (!String(text || '').trim() && hasImg) {
+    review = {
+      score: Math.round(q.score * 0.4),
+      comment: `已提交 ${images.length} 张作答图片，AI 暂不评阅图片内容，请教师查阅图片后给出最终评分。${citePoint(point)}`
+    };
+  } else {
+    review = mockAi.gradeShortAnswer(q, text || '');
+    if (hasImg) review = { ...review, comment: `${review.comment}\n（另附 ${images.length} 张作答图片，教师可查阅）` };
+  }
+  return { score: review.score, comment: review.comment, steps: review.steps || [], usedLLM: false, usedVision: false };
+}
+
+/**
+ * 真实大模型主观题判分；有照片且配置了视觉模型时走视觉识别 + 判分。
+ * 始终返回 { score, comment, steps, usedLLM, usedVision }，失败自动回退本地评分。
+ */
+async function gradeShortAnswerLLM(q, text, images) {
+  const point = P(q.knowledgeId);
+  const hasImg = Array.isArray(images) && images.length;
+  const local = () => localGradeShort(q, text, images);
+
+  if (!llmReady() && !(hasImg && llmVisionReady())) return local();
+
+  const refText = q.reference || '';
+  const kwText = Array.isArray(q.keywords) && q.keywords.length ? `关键词：${q.keywords.join('、')}` : '';
+  const systemPrompt = `你是严谨的课程助教。请对学生的主观题作答评分并给出简短评语。
+【满分】${q.score} 分
+【题目】${q.stem}
+【标准答案/要点】${refText}${kwText ? '\n' + kwText : ''}
+【关联教材】${citePoint(point)}
+【任务】先阅读学生作答（若提供了图片，请先识别图片中的手写内容，再结合文本框内容综合判断），再依据标准答案要点给分。
+【输出】只返回严格 JSON，不要任何多余文字：{"score":0到${q.score}的整数,"comment":"不超过120字的评语","steps":["分步解析要点"]}`;
+
+  const userText = `学生文本框作答：${String(text || '').trim() || '（空）'}`;
+  let messages, useVision = false;
+  if (hasImg && llmVisionReady()) {
+    useVision = true;
+    const content = [{ type: 'text', text: userText + '\n以下是学生上传的作答图片，请识别其中的手写内容并结合文本评分：' }];
+    images.forEach(img => content.push({ type: 'image_url', image_url: { url: img } }));
+    messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content }];
+  } else if (llmReady()) {
+    const tail = hasImg ? `\n（学生另附 ${images.length} 张作答图片，但当前未配置视觉模型，无法识别图片，请基于文本评分并提醒教师查阅图片。）` : '';
+    messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userText + tail }];
+  } else {
+    return local();
+  }
+
+  let res;
+  try {
+    res = await callLLM({ messages, useVision, temperature: 0.3, maxTokens: 700 });
+  } catch (e) {
+    toast('AI 判分失败，已用本地评分');
+    return local();
+  }
+  if (!res.ok) {
+    if (res.reason !== 'not-configured') toast('AI 判分暂不可用，已用本地评分');
+    return local();
+  }
+  const obj = extractJsonObject(res.text);
+  if (!obj) { toast('AI 返回格式异常，已用本地评分'); return local(); }
+  let score = Number(obj.score);
+  if (!Number.isFinite(score)) { toast('AI 分数异常，已用本地评分'); return local(); }
+  score = Math.max(0, Math.min(q.score, Math.round(score)));
+  const comment = String(obj.comment || '').trim().slice(0, 300) || local().comment;
+  const steps = Array.isArray(obj.steps) ? obj.steps.map(String).slice(0, 8) : [];
+  return { score, comment, steps, usedLLM: true, usedVision: useVision };
+}
+
 function startAssignment(id) {
   const assignment = A(id);
   if (!assignment) return;
   if (isExpired(assignment) && !mySubmission(id)) {
     toast('本次作业已截止，无法开始作答');
     return;
+  }
+  /* 课堂问答：首次开始时记录起始时刻，刷新不重置，到点自动交卷 */
+  if (assignment.mode === 'quiz' && assignment.duration && !mySubmission(id)) {
+    if (!db.quizStart) db.quizStart = {};
+    if (!db.quizStart[id]) { db.quizStart[id] = Date.now(); saveDb(); }
   }
   ui.draft = {};
   assignment.questionIds.forEach(qid => {
@@ -4811,9 +5347,10 @@ function startAssignment(id) {
   render();
 }
 
-function submitAssignment(assignmentId) {
+async function submitAssignment(assignmentId, opts) {
   const assignment = A(assignmentId);
   if (!assignment) return;
+  const auto = !!(opts && opts.auto);
 
   if (isExpired(assignment)) {
     toast('本次作业已截止，无法提交');
@@ -4821,7 +5358,7 @@ function submitAssignment(assignmentId) {
   }
 
   const missing = assignment.questionIds.filter(qid => !answerHasContent(ui.draft[qid]));
-  if (missing.length) {
+  if (!auto && missing.length) {
     toast(`还有 ${missing.length} 道题未作答`);
     return;
   }
@@ -4835,38 +5372,29 @@ function submitAssignment(assignmentId) {
   const aiReviews = {};
   let total = 0;
 
-  assignment.questionIds.forEach(qid => {
+  for (const qid of assignment.questionIds) {
     const q = Q(qid);
     const value = ui.draft[qid];
     answers[qid] = value;
+    if (!q) { scores[qid] = 0; continue; }
     if (q.type === 'single') {
       const t = answerText(value).trim();
       const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
       scores[qid] = got;
       total += got;
       const imgs = answerImages(value);
-      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。` };
+      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
     } else {
-      const text = answerText(value);
-      const imgs = answerImages(value);
-      let review;
-      if (!text.trim() && imgs.length) {
-        const point = P(q.knowledgeId);
-        review = {
-          score: Math.round(q.score * 0.4),
-          comment: `已提交 ${imgs.length} 张作答图片，AI 暂不评阅图片内容，请教师查阅图片后给出最终评分。${citePoint(point)}`
-        };
-      } else {
-        review = mockAi.gradeShortAnswer(q, text);
-        if (imgs.length) review = { ...review, comment: `${review.comment}\n（另附 ${imgs.length} 张作答图片，教师可查阅）` };
-      }
+      const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
       scores[qid] = review.score;
       aiReviews[qid] = review;
       total += review.score;
     }
-  });
+  }
 
-  const hasShort = assignment.questionIds.some(qid => Q(qid).type === 'short');
+  if (mySubmission(assignmentId)) { saveDb(); render(); return; }
+
+  const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
 
   db.submissions.unshift({
     id: `sub-own-${assignmentId}`,
@@ -4881,12 +5409,17 @@ function submitAssignment(assignmentId) {
     total,
     max: totalScore(assignment.questionIds),
     status: hasShort ? 'ai_reviewed' : 'auto',
-    submittedAt: '11-29 09:40'
+    submittedAt: nowStamp()
   });
+
+  /* 提交后清除限时开始记录，停止倒计时 */
+  if (db.quizStart && assignmentId in db.quizStart) {
+    delete db.quizStart[assignmentId];
+  }
 
   saveDb();
   render();
-  toast('已提交，AI 已完成初评');
+  toast(auto ? '时间到，已自动提交并判分' : '已提交，AI 已完成初评');
 }
 
 /* ---------------- 教师复核 ---------------- */
@@ -5093,14 +5626,34 @@ function askHint(level, qid) {
   render();
 }
 
-function askTutor(text, qid) {
-  qid = qid || ui.tutorQuestionId;
+async function askTutor(text, qid) {
+  qid = qid || ui.tutorQuestionId || ui.aiHomeQuestionId;
   if (!qid) return;
   const q = Q(qid);
+  if (!q) return;
   const chats = ui.aiChats[qid] || (ui.aiChats[qid] = []);
   chats.push({ role: 'me', text });
-  chats.push({ role: 'ai', text: mockAi.reply(q, text) });
+  const pending = { role: 'ai', text: '', pending: true };
+  chats.push(pending);
   render();
+  scrollChatBottom();
+
+  /* 默认用本地模板回答兜底；配置了大模型时调用真实模型 */
+  let answer = mockAi.reply(q, text);
+  let usedLLM = false;
+  if (llmReady()) {
+    const messages = buildTutorMessages(chats, q);
+    const res = await callLLM({ messages, temperature: 0.6, maxTokens: 700 });
+    if (res.ok && res.text.trim()) {
+      answer = res.text.trim();
+      usedLLM = true;
+    }
+  }
+  pending.text = answer;
+  pending.pending = false;
+  pending.usedLLM = usedLLM;
+  render();
+  scrollChatBottom();
 }
 
 function setAiHomeMode(mode) {
@@ -5123,9 +5676,77 @@ function sendAiHomeTutor() {
   askTutor(text, ui.aiHomeQuestionId);
 }
 
+/* ---------------- AI 模型设置 ---------------- */
+
+function openLlmSettings() {
+  ui.llmSettingsOpen = true;
+  render();
+}
+
+function closeLlmSettings() {
+  ui.llmSettingsOpen = false;
+  render();
+}
+
+function applyLlmPreset(key) {
+  const p = LLM_PRESETS[key];
+  if (!p) return;
+  const f = document.getElementById('llm-settings-form');
+  if (!f) return;
+  if (p.baseUrl) f.baseUrl.value = p.baseUrl;
+  if (p.model) f.model.value = p.model;
+  toast(`已填入「${p.label}」预设，确认 Key 后点保存`);
+}
+
+function toggleLlmKeyVisibility() {
+  const input = document.getElementById('llm-key-input');
+  const btn = document.getElementById('llm-key-toggle');
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  if (btn) btn.textContent = show ? '隐藏' : '显示';
+}
+
+function saveLlmSettings() {
+  const f = document.getElementById('llm-settings-form');
+  if (!f) return;
+  const data = {};
+  new FormData(f).forEach((v, k) => { data[k] = v; });
+  const baseUrl = String(data.baseUrl || '').trim();
+  const model = String(data.model || '').trim();
+  if (!/^https?:\/\//i.test(baseUrl)) { toast('Base URL 需以 http(s):// 开头'); return; }
+  if (!model) { toast('模型名称不能为空'); return; }
+  saveLlmConfig({
+    enabled: data.enabled === 'on',
+    baseUrl,
+    model,
+    apiKey: String(data.apiKey || '')
+  });
+  toast('已保存 AI 模型配置');
+  ui.llmSettingsOpen = false;
+  render();
+}
+
+function clearLlmSettingsAction() {
+  clearLlmConfig();
+  toast('已清除配置，恢复默认 Agnes 预设（需重新填写 Key）');
+  render();
+}
+
+async function testLlmConnection() {
+  if (!llmReady()) { toast('请先填写 Base URL、模型名称和 API Key'); return; }
+  toast('正在测试连接…');
+  const res = await callLLM({
+    messages: [{ role: 'user', content: '只回复四个字：连接成功' }],
+    temperature: 0,
+    maxTokens: 20
+  });
+  if (res.ok) toast(`连接成功：${(res.text || '').trim().slice(0, 30)}`);
+  else toast(`连接失败（${res.reason}）：${(res.error || '').slice(0, 60)}`);
+}
+
 </script>
 <script>
-/* ===== js/views-common.js ===== */
 /* ============================================================
  * 公共视图：登录、应用骨架、思维导图、抽屉、弹窗
  * ============================================================ */
@@ -5361,6 +5982,9 @@ function shellView(pageKey, content) {
           <span class="role-chip ${isTeacher ? '' : 'student'}">
             <i>${isTeacher ? '师' : '学'}</i>${isTeacher ? esc(currentTeacher().name) : '李同学'}
           </span>
+          <button class="btn btn-sm btn-ghost llm-entry" data-act="open-llm-settings" title="配置 AI 大模型">
+            <span class="llm-dot ${llmReady() ? 'on' : ''}"></span>模型
+          </button>
           <button class="btn btn-sm btn-ghost" data-act="logout">退出登录</button>
           <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置数据</button>
         </div>
@@ -5384,6 +6008,7 @@ function shellView(pageKey, content) {
     ${courseModal()}
     ${drawerPoint()}
     ${questionModal()}
+    ${llmSettingsModal()}
     ${mindmapModal()}
     ${tutorDrawer()}
   </div>`;
@@ -5844,6 +6469,71 @@ function questionModal() {
   </div>`;
 }
 
+/* ---------------- AI 思考中动画 ---------------- */
+
+function thinkingHtml(label) {
+  return `<span class="ai-thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><em>${esc(label || 'AI 正在思考')}</em></span>`;
+}
+
+/* ---------------- AI 模型设置弹窗 ---------------- */
+
+function llmSettingsModal() {
+  if (!ui.llmSettingsOpen) return '';
+  const cfg = llmConfig;
+  const ready = llmReady();
+  const chips = Object.keys(LLM_PRESETS).map(k => {
+    const p = LLM_PRESETS[k];
+    return `<button type="button" class="chip-btn" data-act="llm-preset" data-key="${k}">${esc(p.label)}</button>`;
+  }).join('');
+  return `
+  <div class="backdrop" data-act="close-llm-settings"></div>
+  <div class="modal llm-modal">
+    <div class="drawer-head">
+      <div>
+        <h3>AI 模型设置</h3>
+        <div class="sub">接入真实大模型驱动 AI 问答 · Key 仅保存在本机浏览器（localStorage），不上传服务器</div>
+      </div>
+      <button class="close-btn" data-act="close-llm-settings">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="llm-settings-form">
+        <div class="field">
+          <div class="llm-row">
+            <span>启用真实大模型</span>
+            <label class="switch"><input type="checkbox" name="enabled" ${cfg.enabled ? 'checked' : ''}><span class="slider"></span></label>
+            <span class="badge ${ready ? 'success' : 'warning'}" style="margin-left:auto">${ready ? '已配置 · 可用' : '未配置 Key · 将使用本地演示回答'}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>快捷预设（点一下自动填充地址与模型）</label>
+          <div class="chip-row">${chips}</div>
+        </div>
+        <div class="field">
+          <label>API Base URL</label>
+          <input class="input" name="baseUrl" value="${esc(cfg.baseUrl)}" placeholder="https://api.agnes-ai.cn/v1">
+        </div>
+        <div class="field">
+          <label>模型名称 Model</label>
+          <input class="input" name="model" value="${esc(cfg.model)}" placeholder="agnes-3.0-flash">
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="llm-key-row">
+            <input class="input" type="password" name="apiKey" id="llm-key-input" value="${esc(cfg.apiKey)}" placeholder="粘贴 Key；Agnes 请到 platform.agnes-ai.cn 生成">
+            <button type="button" class="btn btn-ghost" data-act="llm-toggle-key" id="llm-key-toggle">显示</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-act="llm-clear">清除配置</button>
+      <button class="btn" data-act="close-llm-settings">取消</button>
+      <button class="btn" data-act="llm-test">测试连接</button>
+      <button class="btn btn-primary" data-act="llm-save">保存</button>
+    </div>
+  </div>`;
+}
+
 /* ---------------- AI 答疑抽屉 ---------------- */
 
 function tutorDrawer() {
@@ -5888,7 +6578,7 @@ function tutorDrawer() {
       <div class="chat">
         ${chats.length ? chats.map(c => `
           <div class="bubble ${c.role}">
-            <span class="who">${c.role === 'ai' ? 'AI 助教' : '我'}</span>${esc(c.text).replace(/\n/g, '<br>')}
+            <span class="who">${c.role === 'ai' ? 'AI 助教' : '我'}</span>${c.pending ? thinkingHtml() : esc(c.text).replace(/\n/g, '<br>')}
           </div>`).join('') : `
           <div class="bubble ai"><span class="who">AI 助教</span>我是基于本课程课件训练的助教，可以给你提示、讲解知识点，但不会直接替你写答案。你想先看哪一步？</div>`}
       </div>
@@ -5903,7 +6593,6 @@ function tutorDrawer() {
 
 </script>
 <script>
-/* ===== js/views-teacher.js ===== */
 /* ============================================================
  * 教师端页面
  * ============================================================ */
@@ -6182,6 +6871,8 @@ function reviewView() {
           <div class="review-head">
             <b>🤖 AI 初评</b>
             <span class="badge ai">建议 ${generated.score} 分</span>
+            ${generated.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}
+            ${generated.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}
           </div>
           <div class="review-text">${esc(generated.comment).replace(/\n/g, '<br>')}</div>
         </div>` : ''}
@@ -7255,7 +7946,6 @@ function analyticsData() {
 
 </script>
 <script>
-/* ===== js/views-student.js ===== */
 /* ============================================================
  * 学生端页面
  * ============================================================ */
@@ -7594,14 +8284,15 @@ function aiChatView() {
     }
     const point = msg.pointId ? P(msg.pointId) : null;
     const page = msg.page || (point ? point.page : null);
+    const pending = !!msg.pending;
     return `
     <div class="chat-msg bot">
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
-        ${esc(msg.text)}
-        ${page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
-        ${msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
-        ${msg.source ? `
+        ${pending ? thinkingHtml() : esc(msg.text)}
+        ${!pending && page ? `<button class="cite-chip" data-act="open-courseware" data-page="${page}">查看教材第 ${page} 页 →</button>` : ''}
+        ${!pending && msg.grounded === false ? '<span class="badge warning">教材未覆盖</span>' : ''}
+        ${!pending && msg.source ? `
           <div class="cite-source">
             <b>教材原文 · 第 ${msg.source.page} 页</b>
             <span>${esc(msg.source.section || '')}${msg.source.title ? ' · ' + esc(msg.source.title) : ''}</span>
@@ -7687,7 +8378,8 @@ function renderAiHomeQuestion(tabs) {
   }).join('');
 
   const bubbles = chats.map(c => {
-    const text = esc(c.text).replace(/\n/g, '<br>');
+    const pending = !!c.pending;
+    const text = pending ? thinkingHtml() : esc(c.text).replace(/\n/g, '<br>');
     if (c.role === 'me') {
       return `<div class="chat-msg user"><div class="chat-bubble">${text}</div></div>`;
     }
@@ -7696,7 +8388,7 @@ function renderAiHomeQuestion(tabs) {
       <span class="chat-avatar">AI</span>
       <div class="chat-bubble">
         ${text}
-        ${point ? `<button class="cite-chip" data-act="open-courseware" data-page="${point.page}">查看教材第 ${point.page} 页 →</button>` : ''}
+        ${!pending && point ? `<button class="cite-chip" data-act="open-courseware" data-page="${point.page}">查看教材第 ${point.page} 页 →</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -8271,7 +8963,7 @@ function playerView(assignmentId) {
         <h1>${esc(assignment.title)}</h1>
         <p>${assignment.questionIds.length} 题 · 满分 ${totalScore(assignment.questionIds)} 分 · ${esc(assignment.note || '')}</p>
       </div>
-      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : ''}
+      ${sub ? `<span class="badge ${sub.status === 'reviewed' || sub.status === 'auto' ? 'success' : 'ai'}">${sub.status === 'reviewed' ? '教师已复核' : sub.status === 'auto' ? '已完成 · 自动判分' : '已完成 · AI 初评'}</span>` : (assignment.mode === 'quiz' && !isExpired(assignment) && quizRemaining(assignment) !== null ? `<div class="quiz-timer" id="quiz-countdown">⏱ <span class="qt-text">${formatClock(quizRemaining(assignment))}</span></div>` : '')}
     </div>`;
 
   if (sub) return head + resultView(assignment, sub);
@@ -8335,9 +9027,9 @@ function playerView(assignmentId) {
         <div class="divider"></div>
         <div class="privacy-note">
           <span>📌</span>
-          <div>提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。</div>
+          <div>${assignment.mode === 'quiz' ? '课堂问答：倒计时归零将自动交卷并判分，未作答题目计 0 分。' : '提交后客观题立即判分，简答题由 AI 按评分要点给出建议分数，教师确认后为最终成绩。'}</div>
         </div>
-        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">提交作业</button>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" data-act="submit-assignment" data-id="${assignment.id}">${assignment.mode === 'quiz' ? '交卷' : '提交作业'}</button>
       </div>
     </div>
   </div>`;
@@ -8386,7 +9078,7 @@ function resultView(assignment, sub) {
 
       ${review ? `
         <div class="review-card ai">
-          <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span></div>
+          <div class="review-head"><b>🤖 AI 初评</b><span class="badge ai">${review.score} 分</span>${review.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}${review.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}</div>
           <div class="review-text">${esc(review.comment).replace(/\n/g, '<br>')}</div>
           <button class="btn btn-sm btn-ghost" style="margin-top:8px" data-act="open-point" data-id="${q.knowledgeId}">📖 查看课件第 ${P(q.knowledgeId)?.page} 页原文</button>
         </div>` : ''}
@@ -8581,7 +9273,6 @@ function messageCard(m, asPublic) {
 
 </script>
 <script>
-/* ===== js/app.js ===== */
 /* ============================================================
  * 路由、渲染、事件绑定
  * ============================================================ */
@@ -8589,6 +9280,7 @@ function messageCard(m, asPublic) {
 const root = document.getElementById('app');
 let liveTimer = null;
 let practiceTimer = null;
+let countdownTimer = null;
 
 function parseHash() {
   const raw = (location.hash || '#/login').replace(/^#\/?/, '');
@@ -8676,6 +9368,33 @@ function render() {
       render();
       window.scrollTo(0, top);
     }, 60000);
+  }
+
+  /* 课堂问答：每秒刷新倒计时，归零自动交卷判分（刷新不重置） */
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (db.session.role === 'student' && page === 'practice' && param) {
+    const a = A(param);
+    if (a && a.mode === 'quiz' && !mySubmission(param) && quizRemaining(a) !== null) {
+      const tick = () => {
+        const cur = A(param);
+        if (!cur) return;
+        if (mySubmission(param)) {
+          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+          return;
+        }
+        const r = quizRemaining(cur);
+        const el = document.getElementById('quiz-countdown');
+        const txt = el && el.querySelector('.qt-text');
+        if (txt && r !== null) txt.textContent = formatClock(r);
+        if (el) el.classList.toggle('urgent', r !== null && r <= 30);
+        if (r !== null && r <= 0) {
+          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+          submitAssignment(param, { auto: true });
+        }
+      };
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
   }
 
   /* 课上问答页：定时从本地存储刷新，保证正答率及时更新 */
@@ -9062,6 +9781,29 @@ document.addEventListener('click', event => {
       break;
     case 'ai-home-tutor-send':
       sendAiHomeTutor();
+      break;
+
+    /* AI 模型设置 */
+    case 'open-llm-settings':
+      openLlmSettings();
+      break;
+    case 'close-llm-settings':
+      closeLlmSettings();
+      break;
+    case 'llm-preset':
+      applyLlmPreset(target.dataset.key);
+      break;
+    case 'llm-toggle-key':
+      toggleLlmKeyVisibility();
+      break;
+    case 'llm-save':
+      saveLlmSettings();
+      break;
+    case 'llm-clear':
+      clearLlmSettingsAction();
+      break;
+    case 'llm-test':
+      testLlmConnection();
       break;
 
     case 'start-assignment':

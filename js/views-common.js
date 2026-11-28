@@ -233,6 +233,9 @@ function shellView(pageKey, content) {
           <span class="role-chip ${isTeacher ? '' : 'student'}">
             <i>${isTeacher ? '师' : '学'}</i>${isTeacher ? esc(currentTeacher().name) : '李同学'}
           </span>
+          <button class="btn btn-sm btn-ghost llm-entry" data-act="open-llm-settings" title="配置 AI 大模型">
+            <span class="llm-dot ${llmReady() ? 'on' : ''}"></span>模型
+          </button>
           <button class="btn btn-sm btn-ghost" data-act="logout">退出登录</button>
           <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置数据</button>
         </div>
@@ -256,6 +259,7 @@ function shellView(pageKey, content) {
     ${courseModal()}
     ${drawerPoint()}
     ${questionModal()}
+    ${llmSettingsModal()}
     ${mindmapModal()}
     ${tutorDrawer()}
   </div>`;
@@ -716,6 +720,71 @@ function questionModal() {
   </div>`;
 }
 
+/* ---------------- AI 思考中动画 ---------------- */
+
+function thinkingHtml(label) {
+  return `<span class="ai-thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><em>${esc(label || 'AI 正在思考')}</em></span>`;
+}
+
+/* ---------------- AI 模型设置弹窗 ---------------- */
+
+function llmSettingsModal() {
+  if (!ui.llmSettingsOpen) return '';
+  const cfg = llmConfig;
+  const ready = llmReady();
+  const chips = Object.keys(LLM_PRESETS).map(k => {
+    const p = LLM_PRESETS[k];
+    return `<button type="button" class="chip-btn" data-act="llm-preset" data-key="${k}">${esc(p.label)}</button>`;
+  }).join('');
+  return `
+  <div class="backdrop" data-act="close-llm-settings"></div>
+  <div class="modal llm-modal">
+    <div class="drawer-head">
+      <div>
+        <h3>AI 模型设置</h3>
+        <div class="sub">接入真实大模型驱动 AI 问答 · Key 仅保存在本机浏览器（localStorage），不上传服务器</div>
+      </div>
+      <button class="close-btn" data-act="close-llm-settings">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="llm-settings-form">
+        <div class="field">
+          <div class="llm-row">
+            <span>启用真实大模型</span>
+            <label class="switch"><input type="checkbox" name="enabled" ${cfg.enabled ? 'checked' : ''}><span class="slider"></span></label>
+            <span class="badge ${ready ? 'success' : 'warning'}" style="margin-left:auto">${ready ? '已配置 · 可用' : '未配置 Key · 将使用本地演示回答'}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>快捷预设（点一下自动填充地址与模型）</label>
+          <div class="chip-row">${chips}</div>
+        </div>
+        <div class="field">
+          <label>API Base URL</label>
+          <input class="input" name="baseUrl" value="${esc(cfg.baseUrl)}" placeholder="https://api.agnes-ai.cn/v1">
+        </div>
+        <div class="field">
+          <label>模型名称 Model</label>
+          <input class="input" name="model" value="${esc(cfg.model)}" placeholder="agnes-3.0-flash">
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="llm-key-row">
+            <input class="input" type="password" name="apiKey" id="llm-key-input" value="${esc(cfg.apiKey)}" placeholder="粘贴 Key；Agnes 请到 platform.agnes-ai.cn 生成">
+            <button type="button" class="btn btn-ghost" data-act="llm-toggle-key" id="llm-key-toggle">显示</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-act="llm-clear">清除配置</button>
+      <button class="btn" data-act="close-llm-settings">取消</button>
+      <button class="btn" data-act="llm-test">测试连接</button>
+      <button class="btn btn-primary" data-act="llm-save">保存</button>
+    </div>
+  </div>`;
+}
+
 /* ---------------- AI 答疑抽屉 ---------------- */
 
 function tutorDrawer() {
@@ -760,7 +829,7 @@ function tutorDrawer() {
       <div class="chat">
         ${chats.length ? chats.map(c => `
           <div class="bubble ${c.role}">
-            <span class="who">${c.role === 'ai' ? 'AI 助教' : '我'}</span>${esc(c.text).replace(/\n/g, '<br>')}
+            <span class="who">${c.role === 'ai' ? 'AI 助教' : '我'}</span>${c.pending ? thinkingHtml() : esc(c.text).replace(/\n/g, '<br>')}
           </div>`).join('') : `
           <div class="bubble ai"><span class="who">AI 助教</span>我是基于本课程课件训练的助教，可以给你提示、讲解知识点，但不会直接替你写答案。你想先看哪一步？</div>`}
       </div>

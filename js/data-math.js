@@ -210,11 +210,74 @@ window.SUBJECTS.math = {
   assignments: [
     {
       id: 'm-a1', mode: 'quiz', title: '第 1 次课堂问答 · 函数的极限',
-      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
+      questionIds: ['m-q1', 'm-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成', duration: 10
     },
     {
       id: 'm-a2', mode: 'homework', title: '课后作业 · 极限的运算法则',
       questionIds: ['m-q3', 'm-q4'], publishedAt: '11-27 16:40', note: '教材 P22—23 例题后可完成'
+    }
+  ],
+  /* 自主练习真题库：基于课件知识点编制的考试风格题，供学生课下自主练习 */
+  examQuestions: [
+    {
+      id: 'm-eq1', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k9',
+      stem: '极限 lim(x→2) (x²−4)/(x−2) 的值是？',
+      options: ['4', '2', '0', '不存在'], answer: 0,
+      hints: ['分子是平方差，先因式分解。', 'x²−4=(x−2)(x+2)，约去 x−2。', '完整解析：原式 = lim(x→2)(x+2) = 4。'],
+      diagnosis: { reason: '看到 0/0 直接填 0，没有先因式分解约分。', advice: '0/0 型要先变形再代入。', similar: '求 lim(x→3)(x²−9)/(x−3)。' }
+    },
+    {
+      id: 'm-eq2', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k5',
+      stem: '当 x→0 时，下列变量中是无穷小的是？',
+      options: ['x²', '1/x', 'sin x / x', '2'], answer: 0,
+      hints: ['无穷小是极限为 0 的变量。', '逐个算 x→0 时的极限。', '完整解析：x²→0，是无穷小；其余分别为 ∞、1、2。'],
+      diagnosis: { reason: '把“很小的数”当成无穷小，或没算极限。', advice: '回到第 17 页定义 3，必须指明变化过程。', similar: '判断 x→0 时 x sin(1/x) 是否为无穷小。' }
+    },
+    {
+      id: 'm-eq3', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k7',
+      stem: '极限 lim(x→1) (x²−1)/(x²+x−2) 的值是？',
+      options: ['2/3', '1', '0', '3/2'], answer: 0,
+      hints: ['分子分母都含因子 (x−1)。', '分解：分子 (x−1)(x+1)，分母 (x−1)(x+2)。', '完整解析：约分得 (x+1)/(x+2) → 2/3。'],
+      diagnosis: { reason: '分母因式分解错误或约分时漏项。', advice: '先验证 x=1 使分子分母同 0，再分解。', similar: '求 lim(x→1)(x³−1)/(x²−1)。' }
+    },
+    {
+      id: 'm-eq4', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k3',
+      stem: '设 f(x)={ x², x≤0; x+1, x>0 }，则 lim(x→0) f(x) 为？',
+      options: ['不存在', '0', '1', '2'], answer: 0,
+      hints: ['分段点处要分别算左右极限。', '左极限 x→0⁻ 用 x²，右极限 x→0⁺ 用 x+1。', '完整解析：左极限 0，右极限 1，不相等，故极限不存在。'],
+      diagnosis: { reason: '只算了单侧极限，或忽略分段。', advice: '分段函数在分段点必须讨论左右极限。', similar: '讨论 f(x)={x, x<1; 2x−1, x≥1} 在 x=1 的极限。' }
+    },
+    {
+      id: 'm-eq5', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'm-k1',
+      stem: '极限 lim(x→∞) (2x+3)/(x−1) 的值是？',
+      options: ['2', '∞', '0', '1'], answer: 0,
+      hints: ['分子分母同除以最高次幂 x。', '看最高次项系数之比。', '完整解析：(2+3/x)/(1−1/x) → 2。'],
+      diagnosis: { reason: '误以为分子分母都趋于无穷所以极限为 ∞。', advice: '同次多项式比的极限 = 最高次系数之比。', similar: '求 lim(x→∞)(3x²−1)/(x²+2)。' }
+    },
+    {
+      id: 'm-eq6', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'm-k8',
+      stem: '极限 lim(x→0) sin(3x)/x 的值是？',
+      options: ['3', '1', '0', '不存在'], answer: 0,
+      hints: ['用重要极限 lim(u→0) sin u / u = 1。', '把 3x 看作一个整体。', '完整解析：原式 = 3·lim(x→0) sin(3x)/(3x) = 3。'],
+      diagnosis: { reason: '直接认为 sin(3x)/x → 1，漏了系数。', advice: '凑出 sin u / u 的形式，注意系数。', similar: '求 lim(x→0) tan(2x)/x。' }
+    },
+    {
+      id: 'm-eq7', type: 'short', source: '真题', difficulty: '基础', score: 10, knowledgeId: 'm-k10',
+      stem: '求极限 lim(x→+∞) (√(x²+x) − x)，写出关键步骤。',
+      options: [], answer: null,
+      keywords: ['分子有理化', '1/2'],
+      reference: '对根式差作分子有理化：√(x²+x)−x = x/(√(x²+x)+x)，分子分母同除以 x 得 1/(√(1+1/x)+1) → 1/2。',
+      hints: ['根式差想办法有理化。', '分子分母同乘共轭式 √(x²+x)+x。', '完整解析：有理化后 = x/(√(x²+x)+x) → 1/2。'],
+      diagnosis: { reason: '没有有理化，或同除 x 时漏除分子。', advice: '根式差极限优先分子有理化。', similar: '求 lim(x→+∞)(√(x²−x)−x)。' }
+    },
+    {
+      id: 'm-eq8', type: 'short', source: '真题', difficulty: '提高', score: 10, knowledgeId: 'm-k7',
+      stem: '叙述极限四则运算法则的条件，并举例说明为什么只有当 lim f(x) 与 lim g(x) 都存在时才能使用这些法则。',
+      options: [], answer: null,
+      keywords: ['lim f', 'lim g', '存在', '条件'],
+      reference: '若 lim f=A、lim g=B 都存在，则 lim(f±g)=A±B、lim(fg)=AB、lim(f/g)=A/B(B≠0)。条件是两个极限都存在；反例：x→∞ 时 f=x、g=−x，lim f、lim g 都不存在，但 lim(f+g)=0 存在，说明法则条件不满足时结论不能反推。',
+      hints: ['先写出法则成立的前提。', '举一个两个极限都不存在但和存在的反例。', '完整解析：见 reference。'],
+      diagnosis: { reason: '只背结论没写条件，或反例不对。', advice: '法则是充分条件，要会举反例说明必要性。', similar: '举例说明 lim f 存在、lim g 不存在时 lim(f+g) 一定不存在。' }
     }
   ],
   textbook: {

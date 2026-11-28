@@ -5,6 +5,7 @@
 const root = document.getElementById('app');
 let liveTimer = null;
 let practiceTimer = null;
+let countdownTimer = null;
 
 function parseHash() {
   const raw = (location.hash || '#/login').replace(/^#\/?/, '');
@@ -92,6 +93,33 @@ function render() {
       render();
       window.scrollTo(0, top);
     }, 60000);
+  }
+
+  /* 课堂问答：每秒刷新倒计时，归零自动交卷判分（刷新不重置） */
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (db.session.role === 'student' && page === 'practice' && param) {
+    const a = A(param);
+    if (a && a.mode === 'quiz' && !mySubmission(param) && quizRemaining(a) !== null) {
+      const tick = () => {
+        const cur = A(param);
+        if (!cur) return;
+        if (mySubmission(param)) {
+          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+          return;
+        }
+        const r = quizRemaining(cur);
+        const el = document.getElementById('quiz-countdown');
+        const txt = el && el.querySelector('.qt-text');
+        if (txt && r !== null) txt.textContent = formatClock(r);
+        if (el) el.classList.toggle('urgent', r !== null && r <= 30);
+        if (r !== null && r <= 0) {
+          if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+          submitAssignment(param, { auto: true });
+        }
+      };
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
   }
 
   /* 课上问答页：定时从本地存储刷新，保证正答率及时更新 */
@@ -478,6 +506,29 @@ document.addEventListener('click', event => {
       break;
     case 'ai-home-tutor-send':
       sendAiHomeTutor();
+      break;
+
+    /* AI 模型设置 */
+    case 'open-llm-settings':
+      openLlmSettings();
+      break;
+    case 'close-llm-settings':
+      closeLlmSettings();
+      break;
+    case 'llm-preset':
+      applyLlmPreset(target.dataset.key);
+      break;
+    case 'llm-toggle-key':
+      toggleLlmKeyVisibility();
+      break;
+    case 'llm-save':
+      saveLlmSettings();
+      break;
+    case 'llm-clear':
+      clearLlmSettingsAction();
+      break;
+    case 'llm-test':
+      testLlmConnection();
       break;
 
     case 'start-assignment':

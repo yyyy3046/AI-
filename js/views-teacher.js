@@ -276,6 +276,8 @@ function reviewView() {
           <div class="review-head">
             <b>🤖 AI 初评</b>
             <span class="badge ai">建议 ${generated.score} 分</span>
+            ${generated.usedLLM ? '<span class="badge" style="margin-left:6px;background:#eef2ff;color:#4f46e5">AI 生成 · 仅供参考</span>' : ''}
+            ${generated.usedVision ? '<span class="badge" style="margin-left:6px;background:#fff7ed;color:#c2410c">已识别手写照片</span>' : ''}
           </div>
           <div class="review-text">${esc(generated.comment).replace(/\n/g, '<br>')}</div>
         </div>` : ''}

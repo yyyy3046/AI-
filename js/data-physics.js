@@ -284,11 +284,74 @@ window.SUBJECTS.physics = {
   assignments: [
     {
       id: 'p-a1', mode: 'quiz', title: '第 1 次课堂问答 · 电场强度与高斯定理',
-      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成'
+      questionIds: ['p-q1', 'p-q2'], publishedAt: '11-27 09:20', note: '课堂内 10 分钟完成', duration: 10
     },
     {
       id: 'p-a2', mode: 'homework', title: '课后作业 · 电势与电介质',
       questionIds: ['p-q3', 'p-q4'], publishedAt: '11-27 16:40', note: '教材 P157—164 例题后可完成'
+    }
+  ],
+  /* 自主练习真题库：基于课件知识点编制的考试风格题，供学生课下自主练习 */
+  examQuestions: [
+    {
+      id: 'p-eq1', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k2',
+      stem: '真空中两点电荷 q₁=+2.0×10⁻⁹ C、q₂=−3.0×10⁻⁹ C 相距 0.10 m，它们之间库仑力的大小约为（k=9.0×10⁹ N·m²/C²）？',
+      options: ['5.4×10⁻⁶ N', '5.4×10⁻⁵ N', '5.4×10⁻⁷ N', '2.7×10⁻⁶ N'], answer: 0,
+      hints: ['用库仑定律 F=k|q₁q₂|/r²。', '代入数值计算。', '完整解析：F=9e9×6e-18/0.01=5.4×10⁻⁶ N。'],
+      diagnosis: { reason: '公式记错或数量级算错。', advice: '记住 F=kq₁q₂/r²，注意 10 的幂。', similar: '求 q₁=1e-9C、q₂=2e-9C、r=0.3m 时的力。' }
+    },
+    {
+      id: 'p-eq2', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k4',
+      stem: '真空中两个等量正点电荷，在它们连线中点处的合场强为？',
+      options: ['0', '指向其中一个电荷', '垂直连线向外', '无法确定'], answer: 0,
+      hints: ['两个点电荷在中点产生的场强大小相等。', '方向相反，相互抵消。', '完整解析：两场强等大反向，合场强为 0。'],
+      diagnosis: { reason: '只算了一个电荷的场强，或方向判断错。', advice: '场强是矢量，要叠加。', similar: '等量异种电荷连线中点场强是多少？' }
+    },
+    {
+      id: 'p-eq3', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'p-k8',
+      stem: '无限大均匀带电平面（面电荷密度 σ）两侧的电场强度大小为？',
+      options: ['σ/(2ε₀)', 'σ/ε₀', '0', '2σ/ε₀'], answer: 0,
+      hints: ['用高斯定理，取柱形高斯面。', '两个底面都有通量。', '完整解析：2E·ΔS=σΔS/ε₀ → E=σ/(2ε₀)。'],
+      diagnosis: { reason: '漏算一个底面的通量，得到 σ/ε₀。', advice: '高斯面两侧都穿出电场线。', similar: '两带等量异号电荷的无限大平面间场强是多少？' }
+    },
+    {
+      id: 'p-eq4', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k10',
+      stem: '匀强电场中场强大小为 E，沿电场方向相距 d 的两点之间电势差的大小为？',
+      options: ['Ed', 'E/d', 'd/E', '0'], answer: 0,
+      hints: ['匀强电场中 U=Ed（d 沿场强方向）。', '电势差 = 场强 × 沿场方向距离。', '完整解析：U=Ed。'],
+      diagnosis: { reason: '公式记反或用错距离。', advice: 'U=Ed 中 d 必须是沿电场方向的投影。', similar: '场强 200V/m，沿场方向 0.5m 两点电势差多大？' }
+    },
+    {
+      id: 'p-eq5', type: 'single', source: '真题', difficulty: '基础', score: 5, knowledgeId: 'p-k13',
+      stem: '导体处于静电平衡时，其内部电场强度为？',
+      options: ['0', 'σ/ε₀', '不为零', '取决于导体形状'], answer: 0,
+      hints: ['静电平衡时内部自由电子不再定向移动。', '内部场强必须为零。', '完整解析：静电平衡导体内部 E=0。'],
+      diagnosis: { reason: '混淆内部与表面场强。', advice: '内部 E=0，表面场强垂直表面。', similar: '静电平衡时导体是等势体吗？' }
+    },
+    {
+      id: 'p-eq6', type: 'single', source: '真题', difficulty: '提高', score: 5, knowledgeId: 'p-k11',
+      stem: '真空中点电荷 +q 在距它 r 处产生的电势（取无穷远为零势点）为？',
+      options: ['kq/r', 'kq/r²', '−kq/r', '0'], answer: 0,
+      hints: ['点电荷电势公式 V=kq/r。', '注意是 1/r 不是 1/r²。', '完整解析：V=kq/r。'],
+      diagnosis: { reason: '把电势公式和场强公式混淆。', advice: '场强 ∝ 1/r²，电势 ∝ 1/r。', similar: 'q=2e-9C、r=0.5m 处电势多大？' }
+    },
+    {
+      id: 'p-eq7', type: 'short', source: '真题', difficulty: '提高', score: 10, knowledgeId: 'p-k7',
+      stem: '叙述静电场的高斯定理，写出其数学表达式，并说明用高斯定理求场强时对电荷分布对称性的要求。',
+      options: [], answer: null,
+      keywords: ['∮E·dS', 'q/ε₀', '对称性'],
+      reference: '高斯定理：∮_S E·dS = q_内 / ε₀，即穿过任意闭合曲面的电场强度通量等于该曲面所包围电荷的代数和除以 ε₀。用它求场强要求电荷分布具有球对称、轴对称或面对称，使高斯面上 E 大小处处相等、方向与面元法向平行（或垂直），才能把 E 提到积分号外。',
+      hints: ['先写定理的文字表述和公式。', '再说明能解出 E 的对称性条件。', '完整解析：见 reference。'],
+      diagnosis: { reason: '公式写错，或没说清对称性要求。', advice: '高斯定理普遍成立，但只有对称分布才能用来求 E。', similar: '为什么一般带电体不能直接用高斯定理求场强？' }
+    },
+    {
+      id: 'p-eq8', type: 'short', source: '真题', difficulty: '基础', score: 10, knowledgeId: 'p-k15',
+      stem: '写出平行板电容器电容的公式，并说明插入电介质后电容如何变化及其原因。',
+      options: [], answer: null,
+      keywords: ['C=εS/d', '电介质', '增大'],
+      reference: '平行板电容器 C=εS/d，其中 ε=ε_r ε₀ 为介质的介电常数。插入电介质后 ε_r>1，ε 增大，因此电容 C 增大；原因是介质极化产生束缚电荷，削弱了极板间场强，在相同电压下可容纳更多电荷。',
+      hints: ['先写电容公式。', '说明插入介质后哪个量变了。', '完整解析：见 reference。'],
+      diagnosis: { reason: '公式中 ε 写成 ε₀，或没解释原因。', advice: '注意真空与介质的区别在于 ε_r。', similar: '插入金属板（不接触）电容如何变？' }
     }
   ],
   textbook: {

@@ -64,9 +64,11 @@ function loadDb() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 4 && parsed.courses) {
+      if (parsed && parsed.version === 5 && parsed.courses) {
         if (!Array.isArray(parsed.redoRecords)) parsed.redoRecords = [];
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
+        if (!Array.isArray(parsed.practiceRecords)) parsed.practiceRecords = [];
+        if (!parsed.quizStart || typeof parsed.quizStart !== 'object') parsed.quizStart = {};
         if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
         /* 学生端不再出现「课后习题」字样，旧数据统一改为中性名称 */
         Object.values(parsed.courses).forEach(data => {
@@ -74,6 +76,11 @@ function loadDb() {
             if (typeof d.title === 'string' && d.title.indexOf('课后习题') === 0) {
               d.title = d.title.replace(/^课后习题\s*·\s*/, '');
             }
+          });
+          /* 兼容旧数据：缺少真题库或限时字段时补默认值 */
+          if (!Array.isArray(data.examQuestions)) data.examQuestions = [];
+          (data.assignments || []).forEach(a => {
+            if (a.mode === 'quiz' && !a.duration) a.duration = 10;
           });
         });
         useCourse(parsed, parsed.courseId || 'math');
@@ -110,6 +117,12 @@ function resetDb() {
   ui.reviewFilter = 'pending';
   ui.draft = {};
   ui.exerciseDraft = {};
+  ui.practice = null;
+  ui.practiceCourse = 'math';
+  ui.practicePoint = '';
+  ui.practiceDifficulty = '';
+  ui.practiceCount = 5;
+  ui.practiceGenLoading = false;
   ui.previewImage = null;
   ui.aiChats = {};
   ui.gen = null;
@@ -194,6 +207,41 @@ function remainingText(assignment) {
   const hours = Math.floor(diff / 3600000);
   if (hours >= 24) return `剩余 ${Math.floor(hours / 24)} 天 ${hours % 24} 小时`;
   return `剩余 ${hours} 小时 ${Math.floor((diff % 3600000) / 60000)} 分`;
+}
+
+/* ---------------- 课堂问答倒计时 ---------------- */
+
+function formatClock(totalSec) {
+  const s = Math.max(0, Math.floor(Number(totalSec) || 0));
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+/* 距课堂问答结束的秒数；未开始 / 非问答 / 无时长返回 null（不显示倒计时） */
+function quizRemaining(assignment) {
+  if (!assignment || assignment.mode !== 'quiz' || !assignment.duration) return null;
+  const startedAt = db.quizStart && db.quizStart[assignment.id];
+  if (!startedAt) return null;
+  return Math.round(assignment.duration * 60 - (Date.now() - startedAt) / 1000);
+}
+
+/* 从课程真题库按知识点 / 难度过滤并随机抽样 */
+function sampleExamQuestions(courseId, opts) {
+  const data = db.courses && db.courses[courseId];
+  const pool = (data && Array.isArray(data.examQuestions)) ? data.examQuestions.slice() : [];
+  const o = opts || {};
+  let list = pool.filter(q => {
+    if (o.pointId && q.knowledgeId !== o.pointId) return false;
+    if (o.difficulty && q.difficulty !== o.difficulty) return false;
+    return true;
+  });
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  const count = Math.max(1, Math.min(20, Number(o.count) || 5));
+  return list.slice(0, count);
 }
 
 function submissionOf(subId) {
@@ -484,7 +532,7 @@ const LLM_STORAGE_KEY = 'zhike_llm_config';
 
 /* 预设：均已验证支持浏览器 CORS 直连 */
 const LLM_PRESETS = {
-  agnes:       { label: 'Agnes AI（免费）', baseUrl: 'https://apihub.agnes-ai.com/v1', model: 'agnes-2.0-flash' },
+  agnes:       { label: 'Agnes AI（免费）', baseUrl: 'https://api.agnes-ai.cn/v1', model: 'agnes-3.0-flash' },
   deepseek:    { label: 'DeepSeek',          baseUrl: 'https://api.deepseek.com/v1',    model: 'deepseek-chat' },
   siliconflow: { label: '硅基流动',           baseUrl: 'https://api.siliconflow.cn/v1',  model: 'Qwen/Qwen2.5-7B-Instruct' },
   openrouter:  { label: 'OpenRouter',         baseUrl: 'https://openrouter.ai/api/v1',   model: 'openai/gpt-4o-mini' },
@@ -495,21 +543,31 @@ const LLM_PRESETS = {
 let llmConfig = loadLlmConfig();
 
 function loadLlmConfig() {
+  const base = {
+    enabled: true, baseUrl: LLM_PRESETS.agnes.baseUrl, model: LLM_PRESETS.agnes.model, apiKey: '',
+    visionModel: '', visionBaseUrl: '', visionApiKey: ''
+  };
   try {
     const raw = localStorage.getItem(LLM_STORAGE_KEY);
     if (raw) {
       const c = JSON.parse(raw);
       if (c && typeof c === 'object') {
+        // 迁移：旧版误用了 apihub 域名，Agnes 官方正确域名为 api.agnes-ai.cn
+        let url = (c.baseUrl || base.baseUrl).replace(/\/+$/, '');
+        url = url.replace(/apihub\.agnes-ai\.(com|cn)/, 'api.agnes-ai.cn');
         return {
           enabled: c.enabled !== false,
-          baseUrl: (c.baseUrl || LLM_PRESETS.agnes.baseUrl).replace(/\/+$/, ''),
-          model: c.model || LLM_PRESETS.agnes.model,
-          apiKey: c.apiKey || ''
+          baseUrl: url,
+          model: c.model || base.model,
+          apiKey: c.apiKey || '',
+          visionModel: c.visionModel || '',
+          visionBaseUrl: (c.visionBaseUrl || '').replace(/\/+$/, ''),
+          visionApiKey: c.visionApiKey || ''
         };
       }
     }
   } catch (e) { /* ignore */ }
-  return { enabled: true, baseUrl: LLM_PRESETS.agnes.baseUrl, model: LLM_PRESETS.agnes.model, apiKey: '' };
+  return base;
 }
 
 function saveLlmConfig(cfg) {
@@ -517,9 +575,28 @@ function saveLlmConfig(cfg) {
     enabled: cfg.enabled !== false,
     baseUrl: String(cfg.baseUrl || '').trim().replace(/\/+$/, ''),
     model: String(cfg.model || '').trim(),
-    apiKey: cfg.apiKey || ''
+    apiKey: cfg.apiKey || '',
+    visionModel: String(cfg.visionModel || '').trim(),
+    visionBaseUrl: String(cfg.visionBaseUrl || '').trim().replace(/\/+$/, ''),
+    visionApiKey: cfg.visionApiKey || ''
   };
   try { localStorage.setItem(LLM_STORAGE_KEY, JSON.stringify(llmConfig)); } catch (e) { /* ignore */ }
+}
+
+/** 视觉模型生效配置：未单独配置时回退到文本模型配置 */
+function visionConfig() {
+  return {
+    baseUrl: (llmConfig.visionBaseUrl || llmConfig.baseUrl || '').replace(/\/+$/, ''),
+    model: llmConfig.visionModel || llmConfig.model || '',
+    apiKey: llmConfig.visionApiKey || llmConfig.apiKey || ''
+  };
+}
+
+/** 视觉模型是否可用（启用 + 有 Key + 有地址和模型；视觉字段空时回退文本配置） */
+function llmVisionReady() {
+  if (llmConfig.enabled === false) return false;
+  const v = visionConfig();
+  return !!(v.baseUrl && v.model && v.apiKey);
 }
 
 function clearLlmConfig() {
@@ -537,20 +614,23 @@ function llmReady() {
  * @returns {Promise<{ok:boolean,text?:string,reason?:string,error?:string}>}
  */
 async function callLLM(opts) {
-  if (!llmReady()) return { ok: false, reason: 'not-configured' };
+  const useVision = !!(opts && opts.useVision);
+  const cfg = useVision ? visionConfig() : llmConfig;
+  const ready = useVision ? llmVisionReady() : llmReady();
+  if (!ready) return { ok: false, reason: 'not-configured' };
   const { messages, temperature = 0.5, maxTokens = 900, signal } = opts || {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 40000);
   if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
   try {
-    const resp = await fetch(`${llmConfig.baseUrl}/chat/completions`, {
+    const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${llmConfig.apiKey}`
+        'Authorization': `Bearer ${cfg.apiKey}`
       },
       body: JSON.stringify({
-        model: llmConfig.model,
+        model: cfg.model,
         messages,
         temperature,
         max_tokens: maxTokens,

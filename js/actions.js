@@ -611,7 +611,7 @@ function exitRedo() {
   render();
 }
 
-function submitRedo() {
+async function submitRedo() {
   const redo = ui.redo;
   if (!redo || redo.result) return;
   const data = db.courses[redo.courseId];
@@ -625,17 +625,19 @@ function submitRedo() {
     return;
   }
 
-  const items = questions.map(q => {
+  const items = [];
+  for (const q of questions) {
     const value = redo.answers[q.id];
-    let score;
-    if (q.type === 'single') { const t = answerText(value).trim(); score = (t !== '' && Number(t) === q.answer) ? q.score : 0; }
-    else {
-      const text = answerText(value);
-      const imgs = answerImages(value);
-      score = (!text.trim() && imgs.length) ? Math.round(q.score * 0.4) : mockAi.gradeShortAnswer(q, text).score;
+    let score, review = null;
+    if (q.type === 'single') {
+      const t = answerText(value).trim();
+      score = (t !== '' && Number(t) === q.answer) ? q.score : 0;
+    } else {
+      review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
+      score = review.score;
     }
-    return { qid: q.id, score, max: q.score, answer: value };
-  });
+    items.push({ qid: q.id, score, max: q.score, answer: value, review });
+  }
   const total = items.reduce((sum, item) => sum + item.score, 0);
   const max = items.reduce((sum, item) => sum + item.max, 0);
 
@@ -644,7 +646,7 @@ function submitRedo() {
   db.redoRecords.unshift({
     id: `redo-${Date.now()}`,
     courseId: redo.courseId,
-    at: '今天',
+    at: nowStamp(),
     items
   });
   saveDb();
@@ -1654,6 +1656,13 @@ function answerStateRef(kind, qid) {
     if (!cur || typeof cur !== 'object') ui.exerciseDraft[qid] = { text: cur == null ? '' : String(cur), images: [] };
     return ui.exerciseDraft[qid];
   }
+  if (kind === 'practice') {
+    if (!ui.practice) return null;
+    if (!ui.practice.answers) ui.practice.answers = {};
+    const cur = ui.practice.answers[qid];
+    if (!cur || typeof cur !== 'object') ui.practice.answers[qid] = { text: cur == null ? '' : String(cur), images: [] };
+    return ui.practice.answers[qid];
+  }
   return null;
 }
 
@@ -1681,12 +1690,107 @@ function removeAnswerImage(kind, qid, idx) {
 function openPreviewImage(src) { ui.previewImage = src || null; render(); }
 function closePreviewImage() { ui.previewImage = null; render(); }
 
+/* ---------------- 大模型判分 ---------------- */
+
+function nowStamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 从模型返回文本中提取第一个 JSON 对象 */
+function extractJsonObject(s) {
+  if (typeof s !== 'string') return null;
+  const i = s.indexOf('{');
+  const j = s.lastIndexOf('}');
+  if (i < 0 || j < i) return null;
+  try { return JSON.parse(s.slice(i, j + 1)); } catch (e) { return null; }
+}
+
+/** 本地回退评分：无模型 / 模型失败时使用，保持与原逻辑一致 */
+function localGradeShort(q, text, images) {
+  const point = P(q.knowledgeId);
+  const hasImg = Array.isArray(images) && images.length;
+  let review;
+  if (!String(text || '').trim() && hasImg) {
+    review = {
+      score: Math.round(q.score * 0.4),
+      comment: `已提交 ${images.length} 张作答图片，AI 暂不评阅图片内容，请教师查阅图片后给出最终评分。${citePoint(point)}`
+    };
+  } else {
+    review = mockAi.gradeShortAnswer(q, text || '');
+    if (hasImg) review = { ...review, comment: `${review.comment}\n（另附 ${images.length} 张作答图片，教师可查阅）` };
+  }
+  return { score: review.score, comment: review.comment, steps: review.steps || [], usedLLM: false, usedVision: false };
+}
+
+/**
+ * 真实大模型主观题判分；有照片且配置了视觉模型时走视觉识别 + 判分。
+ * 始终返回 { score, comment, steps, usedLLM, usedVision }，失败自动回退本地评分。
+ */
+async function gradeShortAnswerLLM(q, text, images) {
+  const point = P(q.knowledgeId);
+  const hasImg = Array.isArray(images) && images.length;
+  const local = () => localGradeShort(q, text, images);
+
+  if (!llmReady() && !(hasImg && llmVisionReady())) return local();
+
+  const refText = q.reference || '';
+  const kwText = Array.isArray(q.keywords) && q.keywords.length ? `关键词：${q.keywords.join('、')}` : '';
+  const systemPrompt = `你是严谨的课程助教。请对学生的主观题作答评分并给出简短评语。
+【满分】${q.score} 分
+【题目】${q.stem}
+【标准答案/要点】${refText}${kwText ? '\n' + kwText : ''}
+【关联教材】${citePoint(point)}
+【任务】先阅读学生作答（若提供了图片，请先识别图片中的手写内容，再结合文本框内容综合判断），再依据标准答案要点给分。
+【输出】只返回严格 JSON，不要任何多余文字：{"score":0到${q.score}的整数,"comment":"不超过120字的评语","steps":["分步解析要点"]}`;
+
+  const userText = `学生文本框作答：${String(text || '').trim() || '（空）'}`;
+  let messages, useVision = false;
+  if (hasImg && llmVisionReady()) {
+    useVision = true;
+    const content = [{ type: 'text', text: userText + '\n以下是学生上传的作答图片，请识别其中的手写内容并结合文本评分：' }];
+    images.forEach(img => content.push({ type: 'image_url', image_url: { url: img } }));
+    messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content }];
+  } else if (llmReady()) {
+    const tail = hasImg ? `\n（学生另附 ${images.length} 张作答图片，但当前未配置视觉模型，无法识别图片，请基于文本评分并提醒教师查阅图片。）` : '';
+    messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userText + tail }];
+  } else {
+    return local();
+  }
+
+  let res;
+  try {
+    res = await callLLM({ messages, useVision, temperature: 0.3, maxTokens: 700 });
+  } catch (e) {
+    toast('AI 判分失败，已用本地评分');
+    return local();
+  }
+  if (!res.ok) {
+    if (res.reason !== 'not-configured') toast('AI 判分暂不可用，已用本地评分');
+    return local();
+  }
+  const obj = extractJsonObject(res.text);
+  if (!obj) { toast('AI 返回格式异常，已用本地评分'); return local(); }
+  let score = Number(obj.score);
+  if (!Number.isFinite(score)) { toast('AI 分数异常，已用本地评分'); return local(); }
+  score = Math.max(0, Math.min(q.score, Math.round(score)));
+  const comment = String(obj.comment || '').trim().slice(0, 300) || local().comment;
+  const steps = Array.isArray(obj.steps) ? obj.steps.map(String).slice(0, 8) : [];
+  return { score, comment, steps, usedLLM: true, usedVision: useVision };
+}
+
 function startAssignment(id) {
   const assignment = A(id);
   if (!assignment) return;
   if (isExpired(assignment) && !mySubmission(id)) {
     toast('本次作业已截止，无法开始作答');
     return;
+  }
+  /* 课堂问答：首次开始时记录起始时刻，刷新不重置，到点自动交卷 */
+  if (assignment.mode === 'quiz' && assignment.duration && !mySubmission(id)) {
+    if (!db.quizStart) db.quizStart = {};
+    if (!db.quizStart[id]) { db.quizStart[id] = Date.now(); saveDb(); }
   }
   ui.draft = {};
   assignment.questionIds.forEach(qid => {
@@ -1698,9 +1802,10 @@ function startAssignment(id) {
   render();
 }
 
-function submitAssignment(assignmentId) {
+async function submitAssignment(assignmentId, opts) {
   const assignment = A(assignmentId);
   if (!assignment) return;
+  const auto = !!(opts && opts.auto);
 
   if (isExpired(assignment)) {
     toast('本次作业已截止，无法提交');
@@ -1708,7 +1813,7 @@ function submitAssignment(assignmentId) {
   }
 
   const missing = assignment.questionIds.filter(qid => !answerHasContent(ui.draft[qid]));
-  if (missing.length) {
+  if (!auto && missing.length) {
     toast(`还有 ${missing.length} 道题未作答`);
     return;
   }
@@ -1722,38 +1827,29 @@ function submitAssignment(assignmentId) {
   const aiReviews = {};
   let total = 0;
 
-  assignment.questionIds.forEach(qid => {
+  for (const qid of assignment.questionIds) {
     const q = Q(qid);
     const value = ui.draft[qid];
     answers[qid] = value;
+    if (!q) { scores[qid] = 0; continue; }
     if (q.type === 'single') {
       const t = answerText(value).trim();
       const got = (t !== '' && Number(t) === q.answer) ? q.score : 0;
       scores[qid] = got;
       total += got;
       const imgs = answerImages(value);
-      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。` };
+      if (imgs.length) aiReviews[qid] = { score: got, comment: `附 ${imgs.length} 张解题过程照片，仅供教师参考，不影响客观题判分。`, usedLLM: false };
     } else {
-      const text = answerText(value);
-      const imgs = answerImages(value);
-      let review;
-      if (!text.trim() && imgs.length) {
-        const point = P(q.knowledgeId);
-        review = {
-          score: Math.round(q.score * 0.4),
-          comment: `已提交 ${imgs.length} 张作答图片，AI 暂不评阅图片内容，请教师查阅图片后给出最终评分。${citePoint(point)}`
-        };
-      } else {
-        review = mockAi.gradeShortAnswer(q, text);
-        if (imgs.length) review = { ...review, comment: `${review.comment}\n（另附 ${imgs.length} 张作答图片，教师可查阅）` };
-      }
+      const review = await gradeShortAnswerLLM(q, answerText(value), answerImages(value));
       scores[qid] = review.score;
       aiReviews[qid] = review;
       total += review.score;
     }
-  });
+  }
 
-  const hasShort = assignment.questionIds.some(qid => Q(qid).type === 'short');
+  if (mySubmission(assignmentId)) { saveDb(); render(); return; }
+
+  const hasShort = assignment.questionIds.some(qid => { const q = Q(qid); return q && q.type === 'short'; });
 
   db.submissions.unshift({
     id: `sub-own-${assignmentId}`,
@@ -1768,12 +1864,17 @@ function submitAssignment(assignmentId) {
     total,
     max: totalScore(assignment.questionIds),
     status: hasShort ? 'ai_reviewed' : 'auto',
-    submittedAt: '11-29 09:40'
+    submittedAt: nowStamp()
   });
+
+  /* 提交后清除限时开始记录，停止倒计时 */
+  if (db.quizStart && assignmentId in db.quizStart) {
+    delete db.quizStart[assignmentId];
+  }
 
   saveDb();
   render();
-  toast('已提交，AI 已完成初评');
+  toast(auto ? '时间到，已自动提交并判分' : '已提交，AI 已完成初评');
 }
 
 /* ---------------- 教师复核 ---------------- */
