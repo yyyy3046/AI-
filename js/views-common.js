@@ -146,8 +146,8 @@ const NAV_TEACHER = [
 ];
 
 const NAV_STUDENT = [
-  { key: 'learn', icon: '🧭', label: '知识导图' },
   { key: 'practice', icon: '✍️', label: '课堂与作业' },
+  { key: 'learn', icon: '🧭', label: '知识导图' },
   { key: 'wrong', icon: '🧾', label: '错题本' },
   { key: 'ai', icon: '🤖', label: 'AI 问答' },
   { key: 'messages', icon: '💬', label: '私信与问答' }
