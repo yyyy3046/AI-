@@ -1,10 +1,10 @@
 /* ============================================================
  * 知课 AI · 课程与知识库数据核心
- * 支持三门课程：高等数学 / 大学物理 / 电磁场
+ * 支持两门课程：高等数学 / 大学物理
  * ============================================================ */
 
 const STORAGE_KEY = 'zhike-ai-demo:v13';
-const SUBJECT_ORDER = ['math', 'physics', 'em'];
+const SUBJECT_ORDER = ['math', 'physics'];
 const SUBJECTS = window.SUBJECTS;
 
 /* 教师账号；每门课配一位主讲 + 一位助教，共同答疑 */
@@ -12,9 +12,7 @@ const TEACHERS = [
   { id: 't-math', name: '张老师', username: 'gaoshu', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-math2', name: '陈老师', username: 'gaoshu2', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-physics', name: '刘老师', username: 'wuli', password: '123456', courseId: 'physics', courseName: '大学物理' },
-  { id: 't-physics2', name: '赵老师', username: 'wuli2', password: '123456', courseId: 'physics', courseName: '大学物理' },
-  { id: 't-em', name: '王老师', username: 'dianci', password: '123456', courseId: 'em', courseName: '电磁场' },
-  { id: 't-em2', name: '孙老师', username: 'dianci2', password: '123456', courseId: 'em', courseName: '电磁场' }
+  { id: 't-physics2', name: '赵老师', username: 'wuli2', password: '123456', courseId: 'physics', courseName: '大学物理' }
 ];
 
 const STUDENT_ACCOUNT = { id: 's1', name: '李同学', username: 'student', password: '123456' };
@@ -207,7 +205,7 @@ function buildTextbook(subject) {
 }
 
 function buildSeed() {  const seed = {
-    version: 3,
+    version: 4,
   storageKey: STORAGE_KEY,
     session: { role: null, userId: null },
     courseId: 'math',
@@ -230,8 +228,7 @@ function buildSeed() {  const seed = {
   /* 行政班与课程的开设关系：公共课跨专业，专业课面向本专业 */
   const COURSE_CLASSES = {
     math: ['c-ai-2401', 'c-ai-2402', 'c-ei-2401'],
-    physics: ['c-ai-2401', 'c-ai-2402'],
-    em: ['c-ai-2401', 'c-ei-2401']
+    physics: ['c-ai-2401', 'c-ai-2402']
   };
   const DEFAULT_CLASS = 'c-ai-2401';
 

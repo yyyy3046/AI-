@@ -44,7 +44,7 @@ function loginView() {
         </div>
 
         <div class="hero-courses">
-          <span>高等数学</span><span>大学物理</span><span>电磁场</span>
+          <span>高等数学</span><span>大学物理</span>
         </div>
       </section>
 
@@ -290,7 +290,7 @@ function previewImageModal() {
 
 function courseModal() {
   if (!ui.courseModalOpen || db.session.role !== 'teacher') return '';
-  const templates = ['math', 'physics', 'em'].filter(id => db.courses[id]);
+  const templates = SUBJECT_ORDER.filter(id => db.courses[id]);
   return `
   <div class="modal course-modal">
     <div class="card-head">

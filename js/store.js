@@ -62,7 +62,7 @@ function loadDb() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 3 && parsed.courses) {
+      if (parsed && parsed.version === 4 && parsed.courses) {
         if (!Array.isArray(parsed.redoRecords)) parsed.redoRecords = [];
         if (!Array.isArray(parsed.reviewList)) parsed.reviewList = [];
         if (!parsed.selfCheck || typeof parsed.selfCheck !== 'object') parsed.selfCheck = {};
