@@ -597,37 +597,42 @@ function drawerPoint() {
     return '';
   })();
 
+  const hasFormulas = !!(p.formulas && p.formulas.length);
+  const hasParams = !!(p.params && p.params.length);
+  const hasExample = !!p.example;
+  const hasExcerpt = !!p.excerpt;
+  const block = (dot, title, content) => `
+    <div class="kp-block">
+      <div class="kp-block-title"><span class="kp-dot kp-dot-${dot}"></span>${title}</div>
+      ${content}
+    </div>`;
+  const blocks = [
+    hasFormulas ? block('formula', '核心公式',
+      `<div class="formula">${p.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>`) : '',
+    hasParams ? block('param', '公式参数',
+      `<table class="kv"><tbody>${p.params.map(x => `<tr><th><code>${esc(x.sym)}</code> ${esc(x.name)}</th><td>${esc(x.desc)}</td></tr>`).join('')}</tbody></table>`) : '',
+    hasExample ? block('example', '生活化示例',
+      `<div class="kp-example">${esc(p.example)}</div>`) : '',
+    hasExcerpt ? block('source', '课件溯源',
+      `<div class="source-box"><b>${esc(db.courseware.fileName)} · 第 ${p.page} 页</b>${esc(p.excerpt)}</div>`) : ''
+  ].join('');
+
   return `
   <div class="backdrop" data-act="close-drawer"></div>
-  <aside class="drawer">
+  <aside class="drawer drawer-point">
     <div class="drawer-head">
       <div>
         <h3>${esc(p.title)}</h3>
-        <div class="sub">${esc(sectionName)} · 来源 ${esc(db.courseware.fileName)} 第 ${p.page} 页</div>
+        <div class="sub">
+          ${sectionName ? `<span class="crumb-pill">${esc(sectionName)}</span>` : ''}
+          <span class="page-pill">📖 第 ${p.page} 页</span>
+        </div>
       </div>
       <button class="close-btn" data-act="close-drawer">×</button>
     </div>
-    <div class="drawer-body">
-      <div class="kp-summary">${esc(p.summary)}</div>
-
-      <div class="section-title">核心公式</div>
-      <div class="formula">${p.formulas.map(f => `<div>${esc(f)}</div>`).join('')}</div>
-
-      <div class="section-title">公式参数</div>
-      <table class="kv">
-        <tbody>
-          ${p.params.map(x => `<tr><th><code>${esc(x.sym)}</code> ${esc(x.name)}</th><td>${esc(x.desc)}</td></tr>`).join('')}
-        </tbody>
-      </table>
-
-      <div class="section-title">生活化示例</div>
-      <div class="kp-summary">${esc(p.example)}</div>
-
-      <div class="section-title">课件溯源</div>
-      <div class="source-box">
-        <b>${esc(db.courseware.fileName)} · 第 ${p.page} 页</b>
-        ${esc(p.excerpt)}
-      </div>
+    <div class="drawer-body point-detail">
+      ${p.summary ? `<div class="kp-lead">${esc(p.summary)}</div>` : ''}
+      ${blocks}
     </div>
     <div class="drawer-foot">
       ${db.session.role === 'student'
