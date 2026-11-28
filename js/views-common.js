@@ -619,7 +619,7 @@ function drawerPoint() {
 
   return `
   <div class="backdrop" data-act="close-drawer"></div>
-  <aside class="drawer drawer-point">
+  <div class="modal point-modal">
     <div class="drawer-head">
       <div>
         <h3>${esc(p.title)}</h3>
@@ -642,7 +642,7 @@ function drawerPoint() {
            </div>`
         : `<button class="btn btn-block" data-act="close-drawer">关闭</button>`}
     </div>
-  </aside>`;
+  </div>`;
 }
 
 /* ---------------- 题目编辑弹窗 ---------------- */
