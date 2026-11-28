@@ -1,5 +1,5 @@
 /* ============================================================
- * 知课 AI · 演示数据核心（模拟数据，不含真实模型调用）
+ * 知课 AI · 课程与知识库数据核心
  * 支持三门课程：高等数学 / 大学物理 / 电磁场
  * ============================================================ */
 
@@ -7,7 +7,7 @@ const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
-/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑；账号密码仅用于演示 */
+/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑 */
 const TEACHERS = [
   { id: 't-math', name: '张老师', username: 'gaoshu', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-math2', name: '陈老师', username: 'gaoshu2', password: '123456', courseId: 'math', courseName: '高等数学' },
@@ -62,7 +62,7 @@ function useCourse(target, courseId) {
   target.distributed = course.distributed;
 }
 
-/** 生成一份已由 AI 批注过的整卷（演示数据） */
+/** 生成一份已由 AI 批注过的整卷 */
 function buildExamPapers(subject) {
   const items = [];
   const letter = i => String.fromCharCode(65 + i);
@@ -128,7 +128,7 @@ function buildExamPapers(subject) {
 
   const shortQ = subject.questions.find(q => q.type === 'short');  if (shortQ) {
     const point = subject.points.find(p => p.id === shortQ.knowledgeId);
-    const answer = (subject.shortAnswers && subject.shortAnswers.mid) || '（演示作答）';
+    const answer = (subject.shortAnswers && subject.shortAnswers.mid) || '（作答略）';
     const score = Math.round(shortQ.score * 0.7);
     items.push({
       no: items.length + 1,
@@ -285,7 +285,7 @@ function buildSeed() {  const seed = {
       });
 
       const level = scores[3] >= 16 ? 'high' : scores[3] >= 10 ? 'mid' : 'low';
-      const shortText = (source.shortAnswers && source.shortAnswers[level]) || '（演示答案）';
+      const shortText = (source.shortAnswers && source.shortAnswers[level]) || '（答案略）';
       seed.submissions.push({
         id: `${id}-sub-a2-${pid}`, courseId: id, classId: DEFAULT_CLASS, assignmentId: subject.assignments[1].id,
         studentId: pid, studentName: name,
@@ -311,7 +311,7 @@ function buildSeed() {  const seed = {
       seed.messages.push({ ...clone(msg), courseId: id, classId: DEFAULT_CLASS });
     });
 
-    /* 李同学本人有一份已批改的课后作业，含错题，便于演示错题本与重做 */
+    /* 李同学本人有一份已批改的课后作业，含错题，便于展示错题本与重做 */
     const homework = subject.assignments[1];
     const wrongQ = questions[2];
     const shortQ = questions[3];

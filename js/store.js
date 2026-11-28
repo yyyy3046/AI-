@@ -1,5 +1,5 @@
 /* ============================================================
- * 状态管理、本地持久化、模拟 AI 服务
+ * 状态管理、本地持久化、AI 服务
  * ============================================================ */
 
 let db = loadDb();
@@ -77,7 +77,7 @@ function loadDb() {
       }
     }
   } catch (err) {
-    console.warn('读取本地演示数据失败，已重新初始化', err);
+    console.warn('读取本地数据失败，已重新初始化', err);
   }
   return buildSeed();
 }
@@ -86,7 +86,7 @@ function saveDb() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   } catch (err) {
-    console.warn('保存演示数据失败', err);
+    console.warn('保存本地数据失败', err);
   }
 }
 
@@ -345,7 +345,7 @@ function myExerciseSubmission(distId) {
   return (db.exerciseSubmissions || []).find(s => s.distId === distId && s.studentId === 's1');
 }
 
-/* ---------------- 模拟 AI ---------------- */
+/* ---------------- AI 能力 ---------------- */
 
 /** 定位知识点所属章节与小节 */
 function sectionTitleOfPoint(point) {

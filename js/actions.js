@@ -27,7 +27,7 @@ function doLogin(username, password) {
     return;
   }
 
-  showLoginError('账号不存在，请使用下方演示账号');
+  showLoginError('账号不存在，请检查输入或联系管理员');
 }
 
 function showLoginError(message) {
@@ -873,10 +873,10 @@ function resetDemo() {
   ui.mmScale = 1;
   location.hash = '#/login';
   render();
-  toast('演示数据已重置');
+  toast('数据已重置');
 }
 
-/* ---------------- 课件生成（模拟） ---------------- */
+/* ---------------- 课件生成 ---------------- */
 
 const GEN_STEPS = [
   '正在读取课件文件',

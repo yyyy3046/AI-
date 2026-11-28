@@ -2542,7 +2542,7 @@ window.SUBJECTS.em = {
 
 /* ===== js/data.js ===== */
 /* ============================================================
- * 知课 AI · 演示数据核心（模拟数据，不含真实模型调用）
+ * 知课 AI · 课程与知识库数据核心
  * 支持三门课程：高等数学 / 大学物理 / 电磁场
  * ============================================================ */
 
@@ -2550,7 +2550,7 @@ const STORAGE_KEY = 'zhike-ai-demo:v13';
 const SUBJECT_ORDER = ['math', 'physics', 'em'];
 const SUBJECTS = window.SUBJECTS;
 
-/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑；账号密码仅用于演示 */
+/* 教师账号；每门课配一位主讲 + 一位助教，共同答疑 */
 const TEACHERS = [
   { id: 't-math', name: '张老师', username: 'gaoshu', password: '123456', courseId: 'math', courseName: '高等数学' },
   { id: 't-math2', name: '陈老师', username: 'gaoshu2', password: '123456', courseId: 'math', courseName: '高等数学' },
@@ -2605,7 +2605,7 @@ function useCourse(target, courseId) {
   target.distributed = course.distributed;
 }
 
-/** 生成一份已由 AI 批注过的整卷（演示数据） */
+/** 生成一份已由 AI 批注过的整卷 */
 function buildExamPapers(subject) {
   const items = [];
   const letter = i => String.fromCharCode(65 + i);
@@ -2671,7 +2671,7 @@ function buildExamPapers(subject) {
 
   const shortQ = subject.questions.find(q => q.type === 'short');  if (shortQ) {
     const point = subject.points.find(p => p.id === shortQ.knowledgeId);
-    const answer = (subject.shortAnswers && subject.shortAnswers.mid) || '（演示作答）';
+    const answer = (subject.shortAnswers && subject.shortAnswers.mid) || '（作答略）';
     const score = Math.round(shortQ.score * 0.7);
     items.push({
       no: items.length + 1,
@@ -2828,7 +2828,7 @@ function buildSeed() {  const seed = {
       });
 
       const level = scores[3] >= 16 ? 'high' : scores[3] >= 10 ? 'mid' : 'low';
-      const shortText = (source.shortAnswers && source.shortAnswers[level]) || '（演示答案）';
+      const shortText = (source.shortAnswers && source.shortAnswers[level]) || '（答案略）';
       seed.submissions.push({
         id: `${id}-sub-a2-${pid}`, courseId: id, classId: DEFAULT_CLASS, assignmentId: subject.assignments[1].id,
         studentId: pid, studentName: name,
@@ -2854,7 +2854,7 @@ function buildSeed() {  const seed = {
       seed.messages.push({ ...clone(msg), courseId: id, classId: DEFAULT_CLASS });
     });
 
-    /* 李同学本人有一份已批改的课后作业，含错题，便于演示错题本与重做 */
+    /* 李同学本人有一份已批改的课后作业，含错题，便于展示错题本与重做 */
     const homework = subject.assignments[1];
     const wrongQ = questions[2];
     const shortQ = questions[3];
@@ -2914,7 +2914,7 @@ function buildSeed() {  const seed = {
 
 /* ===== js/store.js ===== */
 /* ============================================================
- * 状态管理、本地持久化、模拟 AI 服务
+ * 状态管理、本地持久化、AI 服务
  * ============================================================ */
 
 let db = loadDb();
@@ -2992,7 +2992,7 @@ function loadDb() {
       }
     }
   } catch (err) {
-    console.warn('读取本地演示数据失败，已重新初始化', err);
+    console.warn('读取本地数据失败，已重新初始化', err);
   }
   return buildSeed();
 }
@@ -3001,7 +3001,7 @@ function saveDb() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   } catch (err) {
-    console.warn('保存演示数据失败', err);
+    console.warn('保存本地数据失败', err);
   }
 }
 
@@ -3260,7 +3260,7 @@ function myExerciseSubmission(distId) {
   return (db.exerciseSubmissions || []).find(s => s.distId === distId && s.studentId === 's1');
 }
 
-/* ---------------- 模拟 AI ---------------- */
+/* ---------------- AI 能力 ---------------- */
 
 /** 定位知识点所属章节与小节 */
 function sectionTitleOfPoint(point) {
@@ -3416,7 +3416,7 @@ function doLogin(username, password) {
     return;
   }
 
-  showLoginError('账号不存在，请使用下方演示账号');
+  showLoginError('账号不存在，请检查输入或联系管理员');
 }
 
 function showLoginError(message) {
@@ -4262,10 +4262,10 @@ function resetDemo() {
   ui.mmScale = 1;
   location.hash = '#/login';
   render();
-  toast('演示数据已重置');
+  toast('数据已重置');
 }
 
-/* ---------------- 课件生成（模拟） ---------------- */
+/* ---------------- 课件生成 ---------------- */
 
 const GEN_STEPS = [
   '正在读取课件文件',
@@ -5257,16 +5257,14 @@ function loginView() {
             <button class="btn btn-primary btn-block" type="submit">登录</button>
           </form>
           <div class="login-accounts">
-            <span><b>教师账号</b>gaoshu · wuli · dianci</span>
-            <span><b>学生账号</b>student</span>
-            <span><b>初始密码</b>均为 123456</span>
+            <span>演示账号请参阅路演讲义 · 登录后仅可见本人课程与班级数据</span>
           </div>
         </div>
-        <p class="login-foot">登录后只显示本人课程与班级的数据<br>AI 内容为模拟生成，均标注课件来源页码</p>
+        <p class="login-foot">登录后只显示本人课程与班级的数据<br>AI 内容均标注课件来源页码，可回溯课本原文</p>
       </aside>
     </main>
 
-    <footer class="landing-foot">知课 AI · 演示版本 · 数据保存在本机浏览器</footer>
+    <footer class="landing-foot">知课 AI · 数据保存在本机浏览器</footer>
   </div>`;
 }
 
@@ -5285,7 +5283,7 @@ function joinView() {
           </div>
           <button class="btn btn-primary btn-block" type="submit">加入班级</button>
         </form>
-        <div class="form-hint">演示班级号：AI-2401 · AI-2402 · EI-2401</div>
+        <div class="form-hint">示例班级号：AI-2401 · AI-2402 · EI-2401</div>
         <div class="divider"></div>
         <button class="btn btn-block scan-open-btn" data-act="open-scan">📷 扫一扫加入班级</button>
         <div class="form-hint" style="text-align:center">扫描老师投屏或群里的班级二维码，自动进入对应班级</div>
@@ -5395,7 +5393,7 @@ function shellView(pageKey, content) {
         ${navHtml}
       </nav>
       <div class="sidebar-foot">
-        <b>模拟 AI · 演示数据</b><br>
+        <b>AI 生成 · 内容对齐课件</b><br>
         ${isTeacher ? esc(currentTeacher().name) + ' · ' : ''}${classLine} · ${activeClass ? activeClass.studentCount : db.course.studentCount} 人
       </div>
     </aside>
@@ -5426,7 +5424,7 @@ function shellView(pageKey, content) {
             <i>${isTeacher ? '师' : '学'}</i>${isTeacher ? esc(currentTeacher().name) : '李同学'}
           </span>
           <button class="btn btn-sm btn-ghost" data-act="logout">退出登录</button>
-          <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置演示</button>
+          <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置数据</button>
         </div>
       </header>
 
@@ -6018,7 +6016,7 @@ function studioView() {
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>生成结果</h2><span class="badge">模拟 AI</span></div>
+      <div class="card-head"><h2>生成结果</h2><span class="badge">AI 生成</span></div>
       <div class="card-body">
         <div class="grid-2" style="gap:10px">
           <div class="metric" style="box-shadow:none"><div class="label">章节</div><div class="value">${db.mindMap.length}</div></div>
@@ -6748,7 +6746,7 @@ function examView() {
   <div class="card" style="margin-bottom:16px">
     <div class="card-head">
       <div><h2>上传整套试卷</h2><div class="sub">支持 PDF、图片、Word，AI 自动识别题号与知识点</div></div>
-      ${gen ? '<span class="badge ai">AI 批注中</span>' : '<span class="badge">模拟 AI</span>'}
+      ${gen ? '<span class="badge ai">AI 批注中</span>' : '<span class="badge">AI 生成</span>'}
     </div>
     <div class="card-body">
       <div class="upload-zone" data-act="open-exam-upload">

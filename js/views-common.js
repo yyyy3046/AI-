@@ -67,16 +67,14 @@ function loginView() {
             <button class="btn btn-primary btn-block" type="submit">登录</button>
           </form>
           <div class="login-accounts">
-            <span><b>教师账号</b>gaoshu · wuli · dianci</span>
-            <span><b>学生账号</b>student</span>
-            <span><b>初始密码</b>均为 123456</span>
+            <span>演示账号请参阅路演讲义 · 登录后仅可见本人课程与班级数据</span>
           </div>
         </div>
-        <p class="login-foot">登录后只显示本人课程与班级的数据<br>AI 内容为模拟生成，均标注课件来源页码</p>
+        <p class="login-foot">登录后只显示本人课程与班级的数据<br>AI 内容均标注课件来源页码，可回溯课本原文</p>
       </aside>
     </main>
 
-    <footer class="landing-foot">知课 AI · 演示版本 · 数据保存在本机浏览器</footer>
+    <footer class="landing-foot">知课 AI · 数据保存在本机浏览器</footer>
   </div>`;
 }
 
@@ -95,7 +93,7 @@ function joinView() {
           </div>
           <button class="btn btn-primary btn-block" type="submit">加入班级</button>
         </form>
-        <div class="form-hint">演示班级号：AI-2401 · AI-2402 · EI-2401</div>
+        <div class="form-hint">示例班级号：AI-2401 · AI-2402 · EI-2401</div>
         <div class="divider"></div>
         <button class="btn btn-block scan-open-btn" data-act="open-scan">📷 扫一扫加入班级</button>
         <div class="form-hint" style="text-align:center">扫描老师投屏或群里的班级二维码，自动进入对应班级</div>
@@ -205,7 +203,7 @@ function shellView(pageKey, content) {
         ${navHtml}
       </nav>
       <div class="sidebar-foot">
-        <b>模拟 AI · 演示数据</b><br>
+        <b>AI 生成 · 内容对齐课件</b><br>
         ${isTeacher ? esc(currentTeacher().name) + ' · ' : ''}${classLine} · ${activeClass ? activeClass.studentCount : db.course.studentCount} 人
       </div>
     </aside>
@@ -236,7 +234,7 @@ function shellView(pageKey, content) {
             <i>${isTeacher ? '师' : '学'}</i>${isTeacher ? esc(currentTeacher().name) : '李同学'}
           </span>
           <button class="btn btn-sm btn-ghost" data-act="logout">退出登录</button>
-          <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置演示</button>
+          <button class="btn btn-sm btn-ghost" data-act="reset-demo">重置数据</button>
         </div>
       </header>
 

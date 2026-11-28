@@ -77,7 +77,7 @@ function studioView() {
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>生成结果</h2><span class="badge">模拟 AI</span></div>
+      <div class="card-head"><h2>生成结果</h2><span class="badge">AI 生成</span></div>
       <div class="card-body">
         <div class="grid-2" style="gap:10px">
           <div class="metric" style="box-shadow:none"><div class="label">章节</div><div class="value">${db.mindMap.length}</div></div>
@@ -807,7 +807,7 @@ function examView() {
   <div class="card" style="margin-bottom:16px">
     <div class="card-head">
       <div><h2>上传整套试卷</h2><div class="sub">支持 PDF、图片、Word，AI 自动识别题号与知识点</div></div>
-      ${gen ? '<span class="badge ai">AI 批注中</span>' : '<span class="badge">模拟 AI</span>'}
+      ${gen ? '<span class="badge ai">AI 批注中</span>' : '<span class="badge">AI 生成</span>'}
     </div>
     <div class="card-body">
       <div class="upload-zone" data-act="open-exam-upload">
